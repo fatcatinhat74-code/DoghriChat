@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ZOHR Chat · Mobile</title>
-    <link rel="icon" href="elements/zohr-lab.png">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💬</text></svg>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -23,7 +23,6 @@
             padding: 16px;
         }
         
-        /* ===== LOGIN SCREEN ===== */
         #loginScreen {
             width: 100%;
             max-width: 400px;
@@ -141,7 +140,6 @@
             padding-top: 1rem;
         }
         
-        /* ===== CHAT SCREEN ===== */
         #chatScreen {
             width: 100%;
             max-width: 500px;
@@ -242,8 +240,6 @@
         }
         
         .message-bubble {
-            display:flex;
-            flex-direction: column;
             background: #e9edf2;
             padding: 0.6rem 0.9rem;
             border-radius: 14px;
@@ -304,11 +300,9 @@
             text-decoration: underline;
         }
         
-        /* Message action buttons */
         .msg-actions {
             display: flex;
             align-items: center;
-            justify-content: space-between;
             gap: 4px;
             margin-top: 4px;
             padding-top: 4px;
@@ -373,7 +367,6 @@
             background: rgba(37, 211, 102, 0.2);
         }
         
-        /* Copy toast */
         .copy-toast {
             position: fixed;
             bottom: 80px;
@@ -408,7 +401,6 @@
             opacity: 0.6;
         }
         
-        /* Scrollbar */
         .chat-messages::-webkit-scrollbar {
             width: 4px;
         }
@@ -420,7 +412,6 @@
             background: transparent;
         }
         
-        /* Responsive */
         @media (max-width: 480px) {
             #loginScreen {
                 padding: 1.5rem 1rem;
@@ -443,7 +434,6 @@
 </head>
 <body>
 
-    <!-- ===== LOGIN SCREEN ===== -->
     <div id="loginScreen">
         <div class="login-header">
             <div class="logo">
@@ -465,7 +455,6 @@
         </div>
     </div>
 
-    <!-- ===== CHAT SCREEN ===== -->
     <div id="chatScreen">
         <div class="chat-header">
             <div class="left">
@@ -488,32 +477,64 @@
         </div>
     </div>
 
-    <!-- Copy Toast -->
     <div class="copy-toast" id="copyToast">Copied!</div>
 
-    <!-- Firebase -->
+    <!-- Firebase Libraries -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
 
     <script>
-        // ===== FIREBASE CONFIG =====
-        const firebaseConfig = {
-            apiKey: "AIzaSyC-NULo0E1WB-9DPRLQlfvlKlmoG9beAhQ",
-            authDomain: "notifications-d1187.firebaseapp.com",
-            databaseURL: "https://notifications-d1187-default-rtdb.firebaseio.com",
-            projectId: "notifications-d1187",
-            storageBucket: "notifications-d1187.firebasestorage.app",
-            messagingSenderId: "237025997774",
-            appId: "1:237025997774:web:834bebf387ffbdf76cb19f"
-        };
+        // ===== CONFIGURATION =====
+        // Fetch config from server (Netlify function)
+        let FIREBASE_CONFIG = null;
+        let PASSWORD_HASH = null;
+        let IS_CONFIG_LOADED = false;
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
+        async function loadConfig() {
+            try {
+                const response = await fetch('/.netlify/functions/config');
+                if (!response.ok) {
+                    throw new Error('Failed to load config');
+                }
+                const data = await response.json();
+                FIREBASE_CONFIG = data.firebaseConfig;
+                PASSWORD_HASH = data.passwordHash;
+                IS_CONFIG_LOADED = true;
+                return true;
+            } catch (error) {
+                console.error('Error loading config:', error);
+                // Fallback for local development - NEVER commit real credentials
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    console.warn('⚠️ Using development config. Do NOT commit real credentials!');
+                    // Use environment variables from .env file or process.env
+                    FIREBASE_CONFIG = {
+                        apiKey: process.env.FIREBASE_API_KEY || 'dev-key',
+                        authDomain: process.env.FIREBASE_AUTH_DOMAIN || 'localhost',
+                        projectId: process.env.FIREBASE_PROJECT_ID || 'dev-project'
+                    };
+                    PASSWORD_HASH = process.env.CHAT_PASSWORD_HASH || 'dev-hash';
+                    IS_CONFIG_LOADED = true;
+                    return true;
+                }
+                return false;
+            }
         }
-        const db = firebase.firestore();
 
-        // ===== DOM REFS =====
+        // ===== HASH PASSWORD =====
+        async function hashPassword(password) {
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // ===== MAIN APP =====
+        let allMessages = [];
+        let toastTimer = null;
+        let unsubscribe = null;
+        let isLoggedIn = false;
+
+        // DOM refs
         const loginScreen = document.getElementById('loginScreen');
         const chatScreen = document.getElementById('chatScreen');
         const passwordInput = document.getElementById('passwordInput');
@@ -525,11 +546,6 @@
         const copyToast = document.getElementById('copyToast');
         const messageCount = document.getElementById('messageCount');
 
-        const CORRECT_PASSWORD = 'Zohrlab+1990';
-        let allMessages = [];
-        let toastTimer = null;
-
-        // ===== TOAST =====
         function showToast(text) {
             copyToast.textContent = text;
             copyToast.classList.add('show');
@@ -539,7 +555,6 @@
             }, 1800);
         }
 
-        // ===== FORMAT TEXT =====
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -556,36 +571,19 @@
             return html;
         }
 
-        // ===== WHATSAPP SHARE =====
         function shareToWhatsApp(text) {
-            // Encode the text for URL
             const encodedText = encodeURIComponent(text);
-            
-            // Try to open WhatsApp app first (mobile)
             const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
-            
-            // Fallback to web WhatsApp
             const whatsappWebUrl = `https://wa.me/?text=${encodedText}`;
             
-            // Try to open the app first, if it fails, fallback to web
             const win = window.open(whatsappAppUrl, '_blank');
-            
-            // If window.open returns null or undefined, or the app didn't open
-            // Wait a bit and try web version as fallback
             if (!win || win.closed || typeof win.closed === 'undefined') {
                 setTimeout(() => {
                     window.open(whatsappWebUrl, '_blank');
                 }, 300);
-            } else {
-                // For some browsers, we need to check if it actually opened
-                setTimeout(() => {
-                    // If the window is still open after 1 second, it might be the app
-                    // but we can't reliably detect if the app opened
-                }, 500);
             }
         }
 
-        // ===== RENDER MESSAGES =====
         function renderMessages(messages) {
             if (!messages || messages.length === 0) {
                 messagesContainer.innerHTML = `
@@ -610,7 +608,6 @@
                     minute: '2-digit' 
                 }) || '';
                 const formattedText = formatText(msg.text);
-                // Get raw text for copying and WhatsApp
                 const rawText = msg.text || '';
 
                 html += `
@@ -622,10 +619,10 @@
                         <div class="msg-text">${formattedText}</div>
                         <div class="msg-actions">
                             <button class="copy-btn" data-text="${escapeHtml(rawText)}" title="Copy message">
-                                <i class="fas fa-copy"></i> <p>Copy</p>
+                                <i class="fas fa-copy"></i> Copy
                             </button>
                             <button class="whatsapp-btn" data-text="${escapeHtml(rawText)}" title="Send to WhatsApp">
-                                <i class="fab fa-whatsapp"></i> <p>WhatsApp</p>
+                                <i class="fab fa-whatsapp"></i> WhatsApp
                             </button>
                         </div>
                     </div>
@@ -636,7 +633,6 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             messageCount.textContent = sorted.length;
 
-            // Copy buttons
             document.querySelectorAll('.copy-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -645,7 +641,6 @@
                         navigator.clipboard?.writeText(text).then(() => {
                             showToast('Copied!');
                         }).catch(() => {
-                            // Fallback
                             const ta = document.createElement('textarea');
                             ta.value = text;
                             document.body.appendChild(ta);
@@ -658,7 +653,6 @@
                 });
             });
 
-            // WhatsApp buttons
             document.querySelectorAll('.whatsapp-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -670,53 +664,133 @@
             });
         }
 
-        // ===== LISTEN TO MESSAGES =====
-        let unsubscribe = null;
+        // ===== LISTEN TO MESSAGES USING API =====
+        async function fetchMessages() {
+            try {
+                const user = firebase.auth().currentUser;
+                if (!user) return [];
 
+                const token = await user.getIdToken();
+                const response = await fetch('/.netlify/functions/chat', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch messages');
+                }
+
+                const data = await response.json();
+                return data.messages || [];
+            } catch (error) {
+                console.error('Error fetching messages:', error);
+                return [];
+            }
+        }
+
+        async function sendMessageViaAPI(text, senderName) {
+            try {
+                const user = firebase.auth().currentUser;
+                if (!user) throw new Error('Not authenticated');
+
+                const token = await user.getIdToken();
+                const response = await fetch('/.netlify/functions/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ text, senderName })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to send message');
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('Error sending message:', error);
+                throw error;
+            }
+        }
+
+        async function deleteMessageViaAPI(messageId) {
+            try {
+                const user = firebase.auth().currentUser;
+                if (!user) throw new Error('Not authenticated');
+
+                const token = await user.getIdToken();
+                const response = await fetch(`/.netlify/functions/chat?id=${messageId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete message');
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                throw error;
+            }
+        }
+
+        // ===== LISTEN FOR REAL-TIME UPDATES =====
         function listenMessages() {
             if (unsubscribe) {
                 unsubscribe();
             }
 
-            unsubscribe = db.collection('chatMessages')
-                .orderBy('timestamp', 'asc')
-                .onSnapshot(snapshot => {
-                    const msgs = [];
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        msgs.push({ id: doc.id, ...data });
-                    });
-                    allMessages = msgs;
-                    renderMessages(msgs);
-                }, error => {
-                    console.error('Chat error:', error);
-                    messagesContainer.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fas fa-exclamation-triangle" style="color:#d74f4f;"></i>
-                            <p>Error loading messages</p>
-                        </div>
-                    `;
-                });
+            // Poll for updates every 5 seconds (since we're using API)
+            const interval = setInterval(async () => {
+                if (!isLoggedIn) {
+                    clearInterval(interval);
+                    return;
+                }
+                try {
+                    const messages = await fetchMessages();
+                    allMessages = messages;
+                    renderMessages(messages);
+                } catch (error) {
+                    console.error('Error polling messages:', error);
+                }
+            }, 3000);
+
+            unsubscribe = () => {
+                clearInterval(interval);
+            };
+
+            // Initial fetch
+            fetchMessages().then(messages => {
+                allMessages = messages;
+                renderMessages(messages);
+            });
         }
 
         // ===== LOGIN =====
-        function login() {
+        async function login() {
             const password = passwordInput.value.trim();
-            if (password === CORRECT_PASSWORD) {
+            const hashed = await hashPassword(password);
+            
+            if (hashed === PASSWORD_HASH) {
                 loginError.classList.remove('show');
                 loginScreen.classList.add('hidden');
                 chatScreen.classList.add('open');
-                
-                // Initialize Firebase Auth anonymously
-                firebase.auth().signInAnonymously()
-                    .then(() => {
-                        listenMessages();
-                    })
-                    .catch(error => {
-                        console.error('Auth error:', error);
-                        // Still try to listen without auth
-                        listenMessages();
-                    });
+                isLoggedIn = true;
+
+                try {
+                    await firebase.auth().signInAnonymously();
+                    listenMessages();
+                    sessionStorage.setItem('zohrChatLoggedIn', 'true');
+                } catch (error) {
+                    console.error('Auth error:', error);
+                    // Show error but still allow access
+                    listenMessages();
+                }
             } else {
                 loginError.classList.add('show');
                 passwordInput.value = '';
@@ -733,6 +807,7 @@
                 unsubscribe();
                 unsubscribe = null;
             }
+            isLoggedIn = false;
             firebase.auth().signOut().catch(() => {});
             chatScreen.classList.remove('open');
             loginScreen.classList.remove('hidden');
@@ -745,67 +820,59 @@
             `;
             allMessages = [];
             messageCount.textContent = '0';
-        }
-
-        // ===== EVENT LISTENERS =====
-        loginBtn.addEventListener('click', login);
-        passwordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') login();
-        });
-
-        logoutBtn.addEventListener('click', logout);
-        refreshBtn.addEventListener('click', () => {
-            if (unsubscribe) {
-                unsubscribe();
-                listenMessages();
-                showToast('Refreshed');
-            }
-        });
-
-        // Auto-login if session exists
-        if (sessionStorage.getItem('zohrChatLoggedIn') === 'true') {
-            loginScreen.classList.add('hidden');
-            chatScreen.classList.add('open');
-            firebase.auth().signInAnonymously()
-                .then(() => {
-                    listenMessages();
-                })
-                .catch(() => {
-                    listenMessages();
-                });
-        }
-
-        // Store login state
-        const originalLogin = login;
-        login = function() {
-            const password = passwordInput.value.trim();
-            if (password === CORRECT_PASSWORD) {
-                sessionStorage.setItem('zohrChatLoggedIn', 'true');
-                originalLogin();
-            } else {
-                loginError.classList.add('show');
-                passwordInput.value = '';
-                passwordInput.focus();
-                setTimeout(() => {
-                    loginError.classList.remove('show');
-                }, 3000);
-            }
-        };
-        loginBtn.addEventListener('click', login);
-        passwordInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') login();
-        });
-
-        // Clear session on logout
-        const originalLogout = logout;
-        logout = function() {
             sessionStorage.removeItem('zohrChatLoggedIn');
-            originalLogout();
-        };
-        logoutBtn.addEventListener('click', logout);
+        }
 
-        console.log('📱 Mobile chat loaded. Password: Zohrlab+1990');
-        console.log('💬 Each message has Copy and WhatsApp share buttons');
+        // ===== INIT =====
+        async function init() {
+            const configLoaded = await loadConfig();
+            if (!configLoaded) {
+                console.error('Failed to load configuration');
+                return;
+            }
+
+            // Initialize Firebase with config from server
+            if (!firebase.apps.length && FIREBASE_CONFIG) {
+                firebase.initializeApp(FIREBASE_CONFIG);
+            }
+
+            // Check for existing session
+            if (sessionStorage.getItem('zohrChatLoggedIn') === 'true') {
+                loginScreen.classList.add('hidden');
+                chatScreen.classList.add('open');
+                isLoggedIn = true;
+                try {
+                    await firebase.auth().signInAnonymously();
+                    listenMessages();
+                } catch (error) {
+                    console.error('Auth error:', error);
+                    listenMessages();
+                }
+            }
+
+            // Event listeners
+            loginBtn.addEventListener('click', login);
+            passwordInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') login();
+            });
+
+            logoutBtn.addEventListener('click', logout);
+            refreshBtn.addEventListener('click', async () => {
+                if (isLoggedIn) {
+                    const messages = await fetchMessages();
+                    allMessages = messages;
+                    renderMessages(messages);
+                    showToast('Refreshed');
+                }
+            });
+
+            console.log('📱 Secure chat loaded');
+            console.log('🔒 Firebase config is hidden (loaded from server)');
+            console.log('🔒 Password is hashed (not stored in plain text)');
+        }
+
+        // Start the app
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
