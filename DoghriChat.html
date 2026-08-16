@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZOHR Chat · Mobile</title>
+    <link rel="icon" href="elements/zohr-lab.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        body {
+            background: #f5f7fa;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        
+        /* ===== LOGIN SCREEN ===== */
+        #loginScreen {
+            width: 100%;
+            max-width: 400px;
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 2rem 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid #dee2e6;
+            display: block;
+        }
+        
+        #loginScreen.hidden {
+            display: none;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .login-header .logo {
+            width: 72px;
+            height: 72px;
+            background: #0e94e1;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 2.2rem;
+            color: white;
+        }
+        
+        .login-header h1 {
+            color: #0e94e1;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .login-header p {
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        
+        .login-form .form-group {
+            margin-bottom: 1.2rem;
+        }
+        
+        .login-form label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        
+        .login-form input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            border: 2px solid #dee2e6;
+            font-size: 1rem;
+            background: #f8f9fa;
+            transition: 0.2s;
+            color: #333;
+        }
+        
+        .login-form input:focus {
+            outline: none;
+            border-color: #0e94e1;
+            box-shadow: 0 0 0 3px rgba(14, 148, 225, 0.1);
+        }
+        
+        .login-form .login-error {
+            color: #d74f4f;
+            font-size: 0.8rem;
+            margin-top: 6px;
+            display: none;
+        }
+        
+        .login-form .login-error.show {
+            display: block;
+        }
+        
+        .login-form button {
+            width: 100%;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 12px;
+            background: #0e94e1;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 0.4rem;
+        }
+        
+        .login-form button:hover {
+            background: #0a70ab;
+            transform: translateY(-1px);
+        }
+        
+        .login-form button:active {
+            transform: scale(0.97);
+        }
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.75rem;
+            color: #6c757d;
+            border-top: 1px solid #dee2e6;
+            padding-top: 1rem;
+        }
+        
+        /* ===== CHAT SCREEN ===== */
+        #chatScreen {
+            width: 100%;
+            max-width: 500px;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+            border: 1px solid #dee2e6;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            max-height: 95vh;
+            height: 95vh;
+        }
+        
+        #chatScreen.open {
+            display: flex;
+        }
+        
+        .chat-header {
+            padding: 0.8rem 1rem;
+            background: #0e94e1;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        
+        .chat-header .left {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        
+        .chat-header .left i {
+            font-size: 1.2rem;
+        }
+        
+        .chat-header .left h2 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        .chat-header .right {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        
+        .chat-header .right button {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.3rem 0.5rem;
+            border-radius: 30px;
+            transition: 0.15s;
+        }
+        
+        .chat-header .right button:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .chat-header .right .logout-btn {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 0.3rem 0.8rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .chat-header .right .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 0.8rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #f8f9fa;
+        }
+        
+        .chat-messages .empty-state {
+            text-align: center;
+            padding: 2rem 0;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .chat-messages .empty-state i {
+            font-size: 2.5rem;
+            margin-bottom: 0.6rem;
+            opacity: 0.5;
+        }
+        
+        .message-bubble {
+            display:flex;
+            flex-direction: column;
+            background: #e9edf2;
+            padding: 0.6rem 0.9rem;
+            border-radius: 14px;
+            max-width: 92%;
+            word-break: break-word;
+            font-size: 0.8rem;
+            align-self: flex-start;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace, system-ui;
+            color: #333333;
+            position: relative;
+        }
+        
+        .message-bubble.self {
+            align-self: flex-end;
+            background: #0a70ab;
+            color: #ffffff;
+        }
+        
+        .message-bubble .msg-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            width: 100%;
+        }
+        
+        .message-bubble .msg-user {
+            font-weight: 600;
+            font-size: 0.6rem;
+            opacity: 0.7;
+        }
+        
+        .message-bubble .msg-time {
+            font-size: 0.5rem;
+            opacity: 0.5;
+        }
+        
+        .message-bubble .msg-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            font-size: 0.8rem;
+        }
+        
+        .message-bubble .msg-text b,
+        .message-bubble .msg-text strong {
+            font-weight: 700;
+        }
+        
+        .message-bubble .msg-text i,
+        .message-bubble .msg-text em {
+            font-style: italic;
+        }
+        
+        .message-bubble .msg-text u {
+            text-decoration: underline;
+        }
+        
+        /* Message action buttons */
+        .msg-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+        }
+        
+        .message-bubble.self .msg-actions {
+            border-top-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .msg-actions button {
+            background: transparent;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #6c757d;
+            transition: 0.15s;
+        }
+        
+        .msg-actions button:hover {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
+        .msg-actions button:active {
+            transform: scale(0.95);
+        }
+        
+        .message-bubble.self .msg-actions button {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .message-bubble.self .msg-actions button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .msg-actions .copy-btn {
+            color: #0e94e1;
+        }
+        
+        .message-bubble.self .msg-actions .copy-btn {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .msg-actions .whatsapp-btn {
+            color: #25D366;
+        }
+        
+        .message-bubble.self .msg-actions .whatsapp-btn {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .msg-actions .whatsapp-btn:hover {
+            background: rgba(37, 211, 102, 0.1);
+        }
+        
+        .message-bubble.self .msg-actions .whatsapp-btn:hover {
+            background: rgba(37, 211, 102, 0.2);
+        }
+        
+        /* Copy toast */
+        .copy-toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #222;
+            color: white;
+            padding: 0.4rem 1.5rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: 0.25s;
+            z-index: 999;
+            pointer-events: none;
+        }
+        
+        .copy-toast.show {
+            opacity: 1;
+        }
+        
+        .chat-footer {
+            padding: 0.6rem;
+            background: #ffffff;
+            border-top: 1px solid #dee2e6;
+            flex-shrink: 0;
+            text-align: center;
+        }
+        
+        .chat-footer .reset-info {
+            font-size: 0.6rem;
+            color: #6c757d;
+            opacity: 0.6;
+        }
+        
+        /* Scrollbar */
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #dee2e6;
+            border-radius: 10px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        /* Responsive */
+        @media (max-width: 480px) {
+            #loginScreen {
+                padding: 1.5rem 1rem;
+            }
+            #chatScreen {
+                border-radius: 16px;
+                max-height: 98vh;
+                height: 98vh;
+            }
+            .message-bubble {
+                max-width: 95%;
+                font-size: 0.75rem;
+            }
+            .msg-actions button {
+                font-size: 0.6rem;
+                padding: 3px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== LOGIN SCREEN ===== -->
+    <div id="loginScreen">
+        <div class="login-header">
+            <div class="logo">
+                <i class="fas fa-comment-dots"></i>
+            </div>
+            <h1>ZOHR Chat</h1>
+            <p>Access your messages on mobile</p>
+        </div>
+        <form class="login-form" id="loginForm" onsubmit="return false;">
+            <div class="form-group">
+                <label for="passwordInput"><i class="fas fa-lock"></i> Password</label>
+                <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off">
+            </div>
+            <div class="login-error" id="loginError">Incorrect password. Please try again.</div>
+            <button type="button" id="loginBtn"><i class="fas fa-unlock-alt"></i> Unlock Chat</button>
+        </form>
+        <div class="login-footer">
+            <i class="fas fa-shield-alt"></i> Secure access · ZOHR Laboratory
+        </div>
+    </div>
+
+    <!-- ===== CHAT SCREEN ===== -->
+    <div id="chatScreen">
+        <div class="chat-header">
+            <div class="left">
+                <i class="fas fa-comment-dots"></i>
+                <h2>ZOHR Chat</h2>
+            </div>
+            <div class="right">
+                <button id="refreshBtn" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+                <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>Loading messages...</p>
+            </div>
+        </div>
+        <div class="chat-footer">
+            <span class="reset-info">⏰ Resets at 7:20 AM &amp; 7:20 PM · <span id="messageCount">0</span> messages</span>
+        </div>
+    </div>
+
+    <!-- Copy Toast -->
+    <div class="copy-toast" id="copyToast">Copied!</div>
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+
+    <script>
+        // ===== FIREBASE CONFIG =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-NULo0E1WB-9DPRLQlfvlKlmoG9beAhQ",
+            authDomain: "notifications-d1187.firebaseapp.com",
+            databaseURL: "https://notifications-d1187-default-rtdb.firebaseio.com",
+            projectId: "notifications-d1187",
+            storageBucket: "notifications-d1187.firebasestorage.app",
+            messagingSenderId: "237025997774",
+            appId: "1:237025997774:web:834bebf387ffbdf76cb19f"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        // ===== DOM REFS =====
+        const loginScreen = document.getElementById('loginScreen');
+        const chatScreen = document.getElementById('chatScreen');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const messagesContainer = document.getElementById('chatMessages');
+        const copyToast = document.getElementById('copyToast');
+        const messageCount = document.getElementById('messageCount');
+
+        const CORRECT_PASSWORD = 'Zohrlab+1990';
+        let allMessages = [];
+        let toastTimer = null;
+
+        // ===== TOAST =====
+        function showToast(text) {
+            copyToast.textContent = text;
+            copyToast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                copyToast.classList.remove('show');
+            }, 1800);
+        }
+
+        // ===== FORMAT TEXT =====
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatText(text) {
+            let html = escapeHtml(text);
+            html = html.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+            html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+            html = html.replace(/_{2}([^_{]+)_{2}/g, '<u>$1</u>');
+            html = html.replace(/\n/g, '<br>');
+            html = html.replace(/ {2,}/g, match => '&nbsp;'.repeat(match.length));
+            return html;
+        }
+
+        // ===== WHATSAPP SHARE =====
+        function shareToWhatsApp(text) {
+            // Encode the text for URL
+            const encodedText = encodeURIComponent(text);
+            
+            // Try to open WhatsApp app first (mobile)
+            const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
+            
+            // Fallback to web WhatsApp
+            const whatsappWebUrl = `https://wa.me/?text=${encodedText}`;
+            
+            // Try to open the app first, if it fails, fallback to web
+            const win = window.open(whatsappAppUrl, '_blank');
+            
+            // If window.open returns null or undefined, or the app didn't open
+            // Wait a bit and try web version as fallback
+            if (!win || win.closed || typeof win.closed === 'undefined') {
+                setTimeout(() => {
+                    window.open(whatsappWebUrl, '_blank');
+                }, 300);
+            } else {
+                // For some browsers, we need to check if it actually opened
+                setTimeout(() => {
+                    // If the window is still open after 1 second, it might be the app
+                    // but we can't reliably detect if the app opened
+                }, 500);
+            }
+        }
+
+        // ===== RENDER MESSAGES =====
+        function renderMessages(messages) {
+            if (!messages || messages.length === 0) {
+                messagesContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No messages yet</p>
+                    </div>
+                `;
+                messageCount.textContent = '0';
+                return;
+            }
+
+            const sorted = [...messages].sort((a, b) => 
+                (a.timestamp?.toMillis?.() || 0) - (b.timestamp?.toMillis?.() || 0)
+            );
+
+            let html = '';
+            sorted.forEach(msg => {
+                const isSelf = msg.userId === firebase.auth().currentUser?.uid;
+                const timeStr = msg.timestamp?.toDate?.()?.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                }) || '';
+                const formattedText = formatText(msg.text);
+                // Get raw text for copying and WhatsApp
+                const rawText = msg.text || '';
+
+                html += `
+                    <div class="message-bubble ${isSelf ? 'self' : ''}" data-id="${msg.id}">
+                        <div class="msg-header">
+                            <span class="msg-user">${msg.senderName || 'User'}</span>
+                            <span class="msg-time">${timeStr}</span>
+                        </div>
+                        <div class="msg-text">${formattedText}</div>
+                        <div class="msg-actions">
+                            <button class="copy-btn" data-text="${escapeHtml(rawText)}" title="Copy message">
+                                <i class="fas fa-copy"></i> <p>Copy</p>
+                            </button>
+                            <button class="whatsapp-btn" data-text="${escapeHtml(rawText)}" title="Send to WhatsApp">
+                                <i class="fab fa-whatsapp"></i> <p>WhatsApp</p>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            messagesContainer.innerHTML = html;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            messageCount.textContent = sorted.length;
+
+            // Copy buttons
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const text = btn.dataset.text;
+                    if (text) {
+                        navigator.clipboard?.writeText(text).then(() => {
+                            showToast('Copied!');
+                        }).catch(() => {
+                            // Fallback
+                            const ta = document.createElement('textarea');
+                            ta.value = text;
+                            document.body.appendChild(ta);
+                            ta.select();
+                            document.execCommand('copy');
+                            ta.remove();
+                            showToast('Copied!');
+                        });
+                    }
+                });
+            });
+
+            // WhatsApp buttons
+            document.querySelectorAll('.whatsapp-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const text = btn.dataset.text;
+                    if (text) {
+                        shareToWhatsApp(text);
+                    }
+                });
+            });
+        }
+
+        // ===== LISTEN TO MESSAGES =====
+        let unsubscribe = null;
+
+        function listenMessages() {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+
+            unsubscribe = db.collection('chatMessages')
+                .orderBy('timestamp', 'asc')
+                .onSnapshot(snapshot => {
+                    const msgs = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        msgs.push({ id: doc.id, ...data });
+                    });
+                    allMessages = msgs;
+                    renderMessages(msgs);
+                }, error => {
+                    console.error('Chat error:', error);
+                    messagesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color:#d74f4f;"></i>
+                            <p>Error loading messages</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // ===== LOGIN =====
+        function login() {
+            const password = passwordInput.value.trim();
+            if (password === CORRECT_PASSWORD) {
+                loginError.classList.remove('show');
+                loginScreen.classList.add('hidden');
+                chatScreen.classList.add('open');
+                
+                // Initialize Firebase Auth anonymously
+                firebase.auth().signInAnonymously()
+                    .then(() => {
+                        listenMessages();
+                    })
+                    .catch(error => {
+                        console.error('Auth error:', error);
+                        // Still try to listen without auth
+                        listenMessages();
+                    });
+            } else {
+                loginError.classList.add('show');
+                passwordInput.value = '';
+                passwordInput.focus();
+                setTimeout(() => {
+                    loginError.classList.remove('show');
+                }, 3000);
+            }
+        }
+
+        // ===== LOGOUT =====
+        function logout() {
+            if (unsubscribe) {
+                unsubscribe();
+                unsubscribe = null;
+            }
+            firebase.auth().signOut().catch(() => {});
+            chatScreen.classList.remove('open');
+            loginScreen.classList.remove('hidden');
+            passwordInput.value = '';
+            messagesContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>Loading messages...</p>
+                </div>
+            `;
+            allMessages = [];
+            messageCount.textContent = '0';
+        }
+
+        // ===== EVENT LISTENERS =====
+        loginBtn.addEventListener('click', login);
+        passwordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        logoutBtn.addEventListener('click', logout);
+        refreshBtn.addEventListener('click', () => {
+            if (unsubscribe) {
+                unsubscribe();
+                listenMessages();
+                showToast('Refreshed');
+            }
+        });
+
+        // Auto-login if session exists
+        if (sessionStorage.getItem('zohrChatLoggedIn') === 'true') {
+            loginScreen.classList.add('hidden');
+            chatScreen.classList.add('open');
+            firebase.auth().signInAnonymously()
+                .then(() => {
+                    listenMessages();
+                })
+                .catch(() => {
+                    listenMessages();
+                });
+        }
+
+        // Store login state
+        const originalLogin = login;
+        login = function() {
+            const password = passwordInput.value.trim();
+            if (password === CORRECT_PASSWORD) {
+                sessionStorage.setItem('zohrChatLoggedIn', 'true');
+                originalLogin();
+            } else {
+                loginError.classList.add('show');
+                passwordInput.value = '';
+                passwordInput.focus();
+                setTimeout(() => {
+                    loginError.classList.remove('show');
+                }, 3000);
+            }
+        };
+        loginBtn.addEventListener('click', login);
+        passwordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        // Clear session on logout
+        const originalLogout = logout;
+        logout = function() {
+            sessionStorage.removeItem('zohrChatLoggedIn');
+            originalLogout();
+        };
+        logoutBtn.addEventListener('click', logout);
+
+        console.log('📱 Mobile chat loaded. Password: Zohrlab+1990');
+        console.log('💬 Each message has Copy and WhatsApp share buttons');
+    </script>
+</body>
+</html>
