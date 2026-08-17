@@ -534,10 +534,14 @@
         </div>
         <form class="login-form" id="loginForm" onsubmit="return false;">
             <div class="form-group">
-                <label for="passwordInput"><i class="fas fa-lock"></i> Password</label>
-                <input type="password" id="passwordInput" placeholder="Enter password" autocomplete="off">
+                <label for="idInput"><i class="fas fa-id-badge"></i> Payroll ID</label>
+                <input type="number" id="idInput" placeholder="Enter your payroll ID" autocomplete="off">
             </div>
-            <div class="login-error" id="loginError">Incorrect password. Please try again.</div>
+            <div class="form-group">
+                <label for="passwordInput"><i class="fas fa-lock"></i> Password</label>
+                <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="off">
+            </div>
+            <div class="login-error" id="loginError">Invalid ID or password. Please try again.</div>
             <button type="button" id="loginBtn"><i class="fas fa-unlock-alt"></i> Unlock Chat</button>
         </form>
         <div class="login-footer">
@@ -550,7 +554,7 @@
         <div class="chat-header">
             <div class="left">
                 <i class="fas fa-comment-dots"></i>
-                <h2>Doghri Chat Mobile</h2>
+                <h2 id="chatUserDisplay">Doghri Chat Mobile</h2>
             </div>
             <div class="right">
                 <button id="refreshBtn" title="Refresh"><i class="fas fa-sync-alt"></i></button>
@@ -584,6 +588,56 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
 
     <script>
+        // ===== USER DATABASE (Hardcoded) =====
+        const USERS = [
+            { id: 6648, name: "Mostafa Mansy" },
+            { id: 7048, name: "Mohamed Badran" },
+            { id: 8452, name: "Mohamed Asab" },
+            { id: 10002, name: "Ahmed Gaber" },
+            { id: 10503, name: "Hossam Azzam" },
+            { id: 10504, name: "Mahmoud Basyouni" },
+            { id: 10505, name: "Ahmed Zyada" },
+            { id: 10507, name: "Ramadan Hassan" },
+            { id: 10508, name: "Mohamed El-Adl" },
+            { id: 10509, name: "Saeed Atef" },
+            { id: 10510, name: "Hani El-Aryan" },
+            { id: 10512, name: "Mohamed Maher" },
+            { id: 10735, name: "Ahmed Ageina" },
+            { id: 10737, name: "Mahmoud Sawaq" },
+            { id: 10739, name: "Abdel Aziz" },
+            { id: 10740, name: "Eliwa" },
+            { id: 10741, name: "Ahmed Gamal" },
+            { id: 10742, name: "Mahmoud Salem" },
+            { id: 10743, name: "Karim Khidr" },
+            { id: 10744, name: "Tarek" },
+            { id: 10796, name: "Ahmed Fathallah" },
+            { id: 10837, name: "Mohamed Reda" },
+            { id: 10910, name: "Mohamed Azzam" }
+        ];
+
+        // ===== AUTHENTICATION FUNCTION =====
+        function authenticateUser(id, password) {
+            // Find user by ID
+            const user = USERS.find(u => u.id === parseInt(id));
+            
+            if (!user) {
+                return { success: false, message: "ID not found" };
+            }
+            
+            // Get first letter of first name (lowercase)
+            const firstName = user.name.split(' ')[0];
+            const firstLetter = "+"+firstName.charAt(0).toLowerCase();
+            
+            // Expected password = id + first letter
+            const expectedPassword = String(user.id) + firstLetter;
+            
+            if (password === expectedPassword) {
+                return { success: true, user: user };
+            } else {
+                return { success: false, message: "Invalid password" };
+            }
+        }
+
         // ===== FIREBASE CONFIG =====
         const firebaseConfig = {
             apiKey: "AIzaSyC-NULo0E1WB-9DPRLQlfvlKlmoG9beAhQ",
@@ -603,6 +657,7 @@
         // ===== DOM REFS =====
         const loginScreen = document.getElementById('loginScreen');
         const chatScreen = document.getElementById('chatScreen');
+        const idInput = document.getElementById('idInput');
         const passwordInput = document.getElementById('passwordInput');
         const loginBtn = document.getElementById('loginBtn');
         const loginError = document.getElementById('loginError');
@@ -613,12 +668,13 @@
         const messageCount = document.getElementById('messageCount');
         const chatInput = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
+        const chatUserDisplay = document.getElementById('chatUserDisplay');
 
-        const CORRECT_PASSWORD = 'Zohrlab+1990';
         let allMessages = [];
         let toastTimer = null;
         let unsubscribe = null;
         let isLoggedIn = false;
+        let currentUser = null; // Store the logged-in user object
 
         // ===== TOAST =====
         function showToast(text) {
@@ -669,6 +725,11 @@
                 return;
             }
 
+            if (!currentUser) {
+                showToast('Please login first');
+                return;
+            }
+
             const user = firebase.auth().currentUser;
             if (!user) {
                 showToast('Please wait... authenticating');
@@ -683,7 +744,8 @@
                 return;
             }
 
-            const senderName = user.displayName || (user.email ? user.email.split('@')[0] : 'Doghri Chat');
+            // Use the actual user's full name from the database
+            const senderName = currentUser.name;
 
             // Disable send button while sending
             sendBtn.disabled = true;
@@ -826,23 +888,41 @@
 
         // ===== LOGIN =====
         function login() {
+            const id = idInput.value.trim();
             const password = passwordInput.value.trim();
-            if (password === CORRECT_PASSWORD) {
+            
+            if (!id || !password) {
+                loginError.textContent = 'Please enter both ID and password';
+                loginError.classList.add('show');
+                setTimeout(() => loginError.classList.remove('show'), 3000);
+                return;
+            }
+
+            const result = authenticateUser(id, password);
+            
+            if (result.success) {
+                currentUser = result.user;
                 loginError.classList.remove('show');
                 loginScreen.classList.add('hidden');
                 chatScreen.classList.add('open');
                 isLoggedIn = true;
                 
+                // Update header with user's name
+                chatUserDisplay.textContent = `👤 ${currentUser.name}`;
+                
                 firebase.auth().signInAnonymously()
                     .then(() => {
                         listenMessages();
                         sessionStorage.setItem('DoghriChatLoggedIn', 'true');
+                        sessionStorage.setItem('DoghriChatUserId', id);
+                        sessionStorage.setItem('DoghriChatUserName', currentUser.name);
                     })
                     .catch(error => {
                         console.error('Auth error:', error);
                         listenMessages();
                     });
             } else {
+                loginError.textContent = 'Invalid ID or password. Please try again.';
                 loginError.classList.add('show');
                 passwordInput.value = '';
                 passwordInput.focus();
@@ -859,10 +939,13 @@
                 unsubscribe = null;
             }
             isLoggedIn = false;
+            currentUser = null;
             firebase.auth().signOut().catch(() => {});
             chatScreen.classList.remove('open');
             loginScreen.classList.remove('hidden');
+            idInput.value = '';
             passwordInput.value = '';
+            chatUserDisplay.textContent = 'Doghri Chat Mobile';
             messagesContainer.innerHTML = `
                 <div class="empty-state">
                     <i class="fas fa-inbox"></i>
@@ -872,10 +955,20 @@
             allMessages = [];
             messageCount.textContent = '0';
             sessionStorage.removeItem('DoghriChatLoggedIn');
+            sessionStorage.removeItem('DoghriChatUserId');
+            sessionStorage.removeItem('DoghriChatUserName');
         }
 
         // ===== EVENT LISTENERS =====
         loginBtn.addEventListener('click', login);
+        
+        // Enter key on either input triggers login
+        idInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                passwordInput.focus();
+            }
+        });
+        
         passwordInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') login();
         });
@@ -899,20 +992,35 @@
         });
 
         // Auto-login if session exists
-        if (sessionStorage.getItem('DoghriChatLoggedIn') === 'true') {
-            loginScreen.classList.add('hidden');
-            chatScreen.classList.add('open');
-            isLoggedIn = true;
-            firebase.auth().signInAnonymously()
-                .then(() => {
-                    listenMessages();
-                })
-                .catch(() => {
-                    listenMessages();
-                });
+        const savedUserId = sessionStorage.getItem('DoghriChatUserId');
+        const savedUserName = sessionStorage.getItem('DoghriChatUserName');
+        
+        if (sessionStorage.getItem('DoghriChatLoggedIn') === 'true' && savedUserId) {
+            // Find the user in the list
+            const savedUser = USERS.find(u => u.id === parseInt(savedUserId));
+            if (savedUser) {
+                currentUser = savedUser;
+                loginScreen.classList.add('hidden');
+                chatScreen.classList.add('open');
+                isLoggedIn = true;
+                chatUserDisplay.textContent = `👤 ${currentUser.name}`;
+                
+                firebase.auth().signInAnonymously()
+                    .then(() => {
+                        listenMessages();
+                    })
+                    .catch(() => {
+                        listenMessages();
+                    });
+            } else {
+                // Invalid session, clear it
+                sessionStorage.removeItem('DoghriChatLoggedIn');
+                sessionStorage.removeItem('DoghriChatUserId');
+                sessionStorage.removeItem('DoghriChatUserName');
+            }
         }
 
-        
+        console.log('🚀 Doghri Chat Mobile loaded with ' + USERS.length + ' users');
     </script>
 </body>
 </html>
