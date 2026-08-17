@@ -519,6 +519,45 @@
                 min-height: 36px;
             }
         }
+
+        /* ===== LINK STYLES ===== */
+.zohr-chat-msg .zohr-chat-text a {
+    color: #0e94e1;
+    text-decoration: underline;
+    word-break: break-all;
+    transition: color 0.2s ease;
+    font-weight: 500;
+}
+
+.zohr-chat-msg .zohr-chat-text a:hover {
+    color: #0a70ab;
+    text-decoration: underline;
+}
+
+/* For mobile - larger tap target */
+.zohr-chat-msg .zohr-chat-text a:active {
+    opacity: 0.7;
+}
+
+/* Self messages - links should be white */
+.zohr-chat-msg.self .zohr-chat-text a {
+    color: #ffffff;
+    text-decoration: underline;
+    text-decoration-color: rgba(255, 255, 255, 0.3);
+}
+
+.zohr-chat-msg.self .zohr-chat-text a:hover {
+    color: #e8f4fd;
+    text-decoration-color: rgba(255, 255, 255, 0.6);
+}
+
+/* On mobile, make links easier to tap */
+@media (max-width: 480px) {
+    .zohr-chat-msg .zohr-chat-text a {
+        padding: 4px 0;
+        display: inline-block;
+    }
+}
     </style>
 </head>
 <body>
@@ -687,21 +726,69 @@
         }
 
         // ===== FORMAT TEXT =====
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+// ===== MESSAGE FORMATTING WITH CLICKABLE LINKS - MOBILE OPTIMIZED =====
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
-        function formatText(text) {
-            let html = escapeHtml(text);
-            html = html.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
-            html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-            html = html.replace(/_{2}([^_{]+)_{2}/g, '<u>$1</u>');
-            html = html.replace(/\n/g, '<br>');
-            html = html.replace(/ {2,}/g, match => '&nbsp;'.repeat(match.length));
-            return html;
+function formatText(text) {
+    // First, escape HTML to prevent XSS
+    let html = escapeHtml(text);
+    
+    // Apply formatting (bold, italic, underline)
+    html = html.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+    html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+    html = html.replace(/_{2}([^_{]+)_{2}/g, '<u>$1</u>');
+    
+    // ===== CONVERT URLs TO CLICKABLE LINKS =====
+    // Split by spaces and newlines
+    const parts = html.split(/(\s+)/);
+    
+    for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        
+        // Skip if already a link
+        if (part.includes('href=')) continue;
+        
+        let url = null;
+        let isUrl = false;
+        let displayUrl = part;
+        
+        // Check for http:// or https://
+        if (part.match(/^https?:\/\/[^\s<>"']+$/)) {
+            url = part;
+            isUrl = true;
         }
+        // Check for www.
+        else if (part.match(/^www\.[^\s<>"']+$/)) {
+            url = 'https://' + part;
+            isUrl = true;
+        }
+        
+        if (isUrl && url) {
+            // Truncate long URLs for display
+            if (displayUrl.length > 40) {
+                displayUrl = displayUrl.substring(0, 37) + '...';
+            }
+            // Mobile-friendly: larger tap target, open in external browser
+            parts[i] = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #0e94e1; text-decoration: underline; word-break: break-all; padding: 2px 0; display: inline-block;">${displayUrl}</a>`;
+        }
+    }
+    
+    html = parts.join('');
+    
+    // Convert newlines to <br>
+    html = html.replace(/\n/g, '<br>');
+    
+    // Preserve multiple spaces
+    html = html.replace(/ {2,}/g, function(match) {
+        return '&nbsp;'.repeat(match.length);
+    });
+    
+    return html;
+}
 
         // ===== WHATSAPP SHARE =====
         function shareToWhatsApp(text) {
