@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Doghri Chat · Mobile</title>
-       <link rel="icon" href="doghri.png">
+    <link rel="icon" href="doghri.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
@@ -490,6 +490,59 @@
             background: transparent;
         }
         
+        /* Notification permission banner */
+        .notification-banner {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-bottom: 1px solid #dee2e6;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #495057;
+            flex-shrink: 0;
+        }
+        
+        .notification-banner.show {
+            display: flex;
+        }
+        
+        .notification-banner .enable-btn {
+            background: #0e94e1;
+            color: white;
+            border: none;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        
+        .notification-banner .enable-btn:hover {
+            background: #0a70ab;
+        }
+        
+        .notification-banner .status-text {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .notification-banner .status-text .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .notification-banner .status-text .dot.on {
+            background: #28a745;
+        }
+        
+        .notification-banner .status-text .dot.off {
+            background: #dc3545;
+        }
+        
         /* Responsive */
         @media (max-width: 480px) {
             #loginScreen {
@@ -518,46 +571,49 @@
                 padding: 0.5rem 0.8rem;
                 min-height: 36px;
             }
+            .notification-banner {
+                font-size: 0.65rem;
+                padding: 6px 10px;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+            .notification-banner .enable-btn {
+                font-size: 0.6rem;
+                padding: 3px 10px;
+            }
         }
 
         /* ===== LINK STYLES ===== */
-.zohr-chat-msg .zohr-chat-text a {
-    color: #0e94e1;
-    text-decoration: underline;
-    word-break: break-all;
-    transition: color 0.2s ease;
-    font-weight: 500;
-}
+        .message-bubble .msg-text a {
+            color: #0e94e1;
+            text-decoration: underline;
+            word-break: break-all;
+            transition: color 0.2s ease;
+            font-weight: 500;
+        }
 
-.zohr-chat-msg .zohr-chat-text a:hover {
-    color: #0a70ab;
-    text-decoration: underline;
-}
+        .message-bubble .msg-text a:hover {
+            color: #0a70ab;
+            text-decoration: underline;
+        }
 
-/* For mobile - larger tap target */
-.zohr-chat-msg .zohr-chat-text a:active {
-    opacity: 0.7;
-}
+        .message-bubble.self .msg-text a {
+            color: #ffffff;
+            text-decoration: underline;
+            text-decoration-color: rgba(255, 255, 255, 0.3);
+        }
 
-/* Self messages - links should be white */
-.zohr-chat-msg.self .zohr-chat-text a {
-    color: #ffffff;
-    text-decoration: underline;
-    text-decoration-color: rgba(255, 255, 255, 0.3);
-}
+        .message-bubble.self .msg-text a:hover {
+            color: #e8f4fd;
+            text-decoration-color: rgba(255, 255, 255, 0.6);
+        }
 
-.zohr-chat-msg.self .zohr-chat-text a:hover {
-    color: #e8f4fd;
-    text-decoration-color: rgba(255, 255, 255, 0.6);
-}
-
-/* On mobile, make links easier to tap */
-@media (max-width: 480px) {
-    .zohr-chat-msg .zohr-chat-text a {
-        padding: 4px 0;
-        display: inline-block;
-    }
-}
+        @media (max-width: 480px) {
+            .message-bubble .msg-text a {
+                padding: 4px 0;
+                display: inline-block;
+            }
+        }
     </style>
 </head>
 <body>
@@ -600,6 +656,18 @@
                 <button class="logout-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</button>
             </div>
         </div>
+        
+        <!-- ===== NOTIFICATION BANNER ===== -->
+        <div class="notification-banner" id="notificationBanner">
+            <span class="status-text">
+                <span class="dot off" id="notifDot"></span>
+                <span id="notifStatus">Notifications: Off</span>
+            </span>
+            <button class="enable-btn" id="enableNotificationsBtn">
+                <i class="fas fa-bell"></i> Enable
+            </button>
+        </div>
+        
         <div class="chat-messages" id="chatMessages">
             <div class="empty-state">
                 <i class="fas fa-inbox"></i>
@@ -614,7 +682,7 @@
             </button>
         </div>
         <div class="chat-footer">
-            <span class="reset-info">⏰ Resets at 7:20 AM &amp; 7:20 PM · <span id="messageCount">0</span> messages</span>
+            <span class="reset-info">💬 Persistent Chat · <span id="messageCount">0</span> messages</span>
         </div>
     </div>
 
@@ -656,18 +724,14 @@
 
         // ===== AUTHENTICATION FUNCTION =====
         function authenticateUser(id, password) {
-            // Find user by ID
             const user = USERS.find(u => u.id === parseInt(id));
             
             if (!user) {
                 return { success: false, message: "ID not found" };
             }
             
-            // Get first letter of first name (lowercase)
             const firstName = user.name.split(' ')[0];
-            const firstLetter = "+"+firstName.charAt(0).toLowerCase();
-            
-            // Expected password = id + first letter
+            const firstLetter = "+" + firstName.charAt(0).toLowerCase();
             const expectedPassword = String(user.id) + firstLetter;
             
             if (password === expectedPassword) {
@@ -693,6 +757,142 @@
         }
         const db = firebase.firestore();
 
+        // ===== NOTIFICATION SYSTEM =====
+        let notificationPermission = 'default';
+        let lastNotificationId = null;
+        let notificationTimeout = null;
+
+        // Check if browser supports notifications
+        function isNotificationSupported() {
+            return 'Notification' in window;
+        }
+
+        // Get notification permission status
+        function getNotificationStatus() {
+            if (!isNotificationSupported()) return 'unsupported';
+            return Notification.permission;
+        }
+
+        // Update UI based on notification status
+        function updateNotificationUI() {
+            const banner = document.getElementById('notificationBanner');
+            const dot = document.getElementById('notifDot');
+            const status = document.getElementById('notifStatus');
+            const enableBtn = document.getElementById('enableNotificationsBtn');
+
+            const permission = getNotificationStatus();
+
+            if (permission === 'granted') {
+                dot.className = 'dot on';
+                status.textContent = '🔔 Notifications: On';
+                enableBtn.textContent = '✅ Enabled';
+                enableBtn.style.background = '#28a745';
+                enableBtn.disabled = true;
+                banner.classList.add('show');
+            } else if (permission === 'denied') {
+                dot.className = 'dot off';
+                status.textContent = '🔕 Notifications: Blocked';
+                enableBtn.textContent = '⚠️ Enable in Settings';
+                enableBtn.style.background = '#dc3545';
+                banner.classList.add('show');
+            } else if (permission === 'default') {
+                dot.className = 'dot off';
+                status.textContent = '🔔 Notifications: Off';
+                enableBtn.textContent = '🔔 Enable';
+                enableBtn.style.background = '#0e94e1';
+                enableBtn.disabled = false;
+                banner.classList.add('show');
+            } else {
+                banner.classList.remove('show');
+            }
+        }
+
+        // Request notification permission
+        function requestNotificationPermission() {
+            if (!isNotificationSupported()) {
+                showToast('Notifications not supported on this browser');
+                return;
+            }
+
+            if (Notification.permission === 'granted') {
+                showToast('✅ Notifications already enabled');
+                updateNotificationUI();
+                return;
+            }
+
+            if (Notification.permission === 'denied') {
+                showToast('⚠️ Notifications blocked. Please enable in browser settings.');
+                return;
+            }
+
+            Notification.requestPermission().then(permission => {
+                notificationPermission = permission;
+                updateNotificationUI();
+                if (permission === 'granted') {
+                    showToast('✅ Notifications enabled!');
+                    // Test notification
+                    sendNotification('Doghri Chat', '🔔 Notifications are now active!');
+                } else {
+                    showToast('❌ Notification permission denied');
+                }
+            }).catch(() => {
+                showToast('❌ Error requesting notification permission');
+            });
+        }
+
+        // Send a notification
+        function sendNotification(title, body, tag) {
+            if (!isNotificationSupported()) return;
+            if (Notification.permission !== 'granted') return;
+
+            // Prevent duplicate notifications in quick succession
+            if (tag && lastNotificationId === tag) {
+                return;
+            }
+
+            try {
+                const options = {
+                    body: body,
+                    icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%230e94e1"/%3E%3Ctext x="50" y="58" text-anchor="middle" font-size="40" fill="white" font-family="Arial"%3E💬%3C/text%3E%3C/svg%3E',
+                    badge: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%230e94e1"/%3E%3Ctext x="50" y="58" text-anchor="middle" font-size="40" fill="white" font-family="Arial"%3E💬%3C/text%3E%3C/svg%3E',
+                    tag: tag || 'chat-notification',
+                    vibrate: [200, 100, 200],
+                    requireInteraction: true,
+                    silent: false,
+                    timestamp: Date.now()
+                };
+
+                const notification = new Notification(title, options);
+                
+                notification.onclick = function() {
+                    window.focus();
+                    this.close();
+                    // Scroll to bottom if chat is open
+                    const messagesContainer = document.getElementById('chatMessages');
+                    if (messagesContainer) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                };
+
+                notification.onshow = function() {
+                    setTimeout(() => this.close(), 8000);
+                };
+
+                if (tag) {
+                    lastNotificationId = tag;
+                }
+
+                // Play notification sound if available
+                try {
+                    const audio = new Audio('data:audio/wav;base64,UklGRlQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAACBMjE5MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+                    audio.play().catch(() => {});
+                } catch (e) {}
+
+            } catch (error) {
+                console.error('Notification error:', error);
+            }
+        }
+
         // ===== DOM REFS =====
         const loginScreen = document.getElementById('loginScreen');
         const chatScreen = document.getElementById('chatScreen');
@@ -708,12 +908,15 @@
         const chatInput = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
         const chatUserDisplay = document.getElementById('chatUserDisplay');
+        const enableNotificationsBtn = document.getElementById('enableNotificationsBtn');
 
         let allMessages = [];
         let toastTimer = null;
         let unsubscribe = null;
         let isLoggedIn = false;
-        let currentUser = null; // Store the logged-in user object
+        let currentUser = null;
+        let previousMessageCount = 0;
+        let isChatVisible = true;
 
         // ===== TOAST =====
         function showToast(text) {
@@ -726,69 +929,55 @@
         }
 
         // ===== FORMAT TEXT =====
-// ===== MESSAGE FORMATTING WITH CLICKABLE LINKS - MOBILE OPTIMIZED =====
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-function formatText(text) {
-    // First, escape HTML to prevent XSS
-    let html = escapeHtml(text);
-    
-    // Apply formatting (bold, italic, underline)
-    html = html.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
-    html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-    html = html.replace(/_{2}([^_{]+)_{2}/g, '<u>$1</u>');
-    
-    // ===== CONVERT URLs TO CLICKABLE LINKS =====
-    // Split by spaces and newlines
-    const parts = html.split(/(\s+)/);
-    
-    for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        
-        // Skip if already a link
-        if (part.includes('href=')) continue;
-        
-        let url = null;
-        let isUrl = false;
-        let displayUrl = part;
-        
-        // Check for http:// or https://
-        if (part.match(/^https?:\/\/[^\s<>"']+$/)) {
-            url = part;
-            isUrl = true;
-        }
-        // Check for www.
-        else if (part.match(/^www\.[^\s<>"']+$/)) {
-            url = 'https://' + part;
-            isUrl = true;
-        }
-        
-        if (isUrl && url) {
-            // Truncate long URLs for display
-            if (displayUrl.length > 40) {
-                displayUrl = displayUrl.substring(0, 37) + '...';
+        function formatText(text) {
+            let html = escapeHtml(text);
+            
+            html = html.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+            html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+            html = html.replace(/_{2}([^_{]+)_{2}/g, '<u>$1</u>');
+            
+            const parts = html.split(/(\s+)/);
+            
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                
+                if (part.includes('href=')) continue;
+                
+                let url = null;
+                let isUrl = false;
+                let displayUrl = part;
+                
+                if (part.match(/^https?:\/\/[^\s<>"']+$/)) {
+                    url = part;
+                    isUrl = true;
+                }
+                else if (part.match(/^www\.[^\s<>"']+$/)) {
+                    url = 'https://' + part;
+                    isUrl = true;
+                }
+                
+                if (isUrl && url) {
+                    if (displayUrl.length > 40) {
+                        displayUrl = displayUrl.substring(0, 37) + '...';
+                    }
+                    parts[i] = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #0e94e1; text-decoration: underline; word-break: break-all; padding: 2px 0; display: inline-block;">${displayUrl}</a>`;
+                }
             }
-            // Mobile-friendly: larger tap target, open in external browser
-            parts[i] = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #0e94e1; text-decoration: underline; word-break: break-all; padding: 2px 0; display: inline-block;">${displayUrl}</a>`;
+            
+            html = parts.join('');
+            html = html.replace(/\n/g, '<br>');
+            html = html.replace(/ {2,}/g, function(match) {
+                return '&nbsp;'.repeat(match.length);
+            });
+            
+            return html;
         }
-    }
-    
-    html = parts.join('');
-    
-    // Convert newlines to <br>
-    html = html.replace(/\n/g, '<br>');
-    
-    // Preserve multiple spaces
-    html = html.replace(/ {2,}/g, function(match) {
-        return '&nbsp;'.repeat(match.length);
-    });
-    
-    return html;
-}
 
         // ===== WHATSAPP SHARE =====
         function shareToWhatsApp(text) {
@@ -831,10 +1020,8 @@ function formatText(text) {
                 return;
             }
 
-            // Use the actual user's full name from the database
             const senderName = currentUser.name;
 
-            // Disable send button while sending
             sendBtn.disabled = true;
             sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
 
@@ -867,6 +1054,7 @@ function formatText(text) {
                     </div>
                 `;
                 messageCount.textContent = '0';
+                previousMessageCount = 0;
                 return;
             }
 
@@ -907,6 +1095,37 @@ function formatText(text) {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             messageCount.textContent = sorted.length;
 
+            // Check for new messages and send notification
+            if (sorted.length > previousMessageCount) {
+                const newMessages = sorted.slice(previousMessageCount);
+                const selfUid = firebase.auth().currentUser?.uid;
+                
+                // Only send notification for messages from others
+                const externalMessages = newMessages.filter(msg => msg.userId !== selfUid);
+                
+                if (externalMessages.length > 0) {
+                    const lastMsg = externalMessages[externalMessages.length - 1];
+                    const senderName = lastMsg.senderName || 'Someone';
+                    const messageText = lastMsg.text || '';
+                    const preview = messageText.length > 50 ? messageText.substring(0, 50) + '...' : messageText;
+                    
+                    // Only send notification if chat is hidden or user is not focused
+                    if (!isChatVisible || document.hidden) {
+                        sendNotification(
+                            `📩 ${senderName}`,
+                            `${preview}`,
+                            `msg-${lastMsg.id}`
+                        );
+                    } else {
+                        // If chat is visible, just show a toast
+                        showToast(`📩 New message from ${senderName}`);
+                    }
+                }
+                previousMessageCount = sorted.length;
+            } else {
+                previousMessageCount = sorted.length;
+            }
+
             // Copy buttons
             document.querySelectorAll('.copy-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
@@ -945,6 +1164,9 @@ function formatText(text) {
             if (unsubscribe) {
                 unsubscribe();
             }
+
+            // Reset previous count when starting fresh
+            previousMessageCount = 0;
 
             unsubscribe = db.collection('chatMessages')
                 .orderBy('timestamp', 'asc')
@@ -994,12 +1216,13 @@ function formatText(text) {
                 chatScreen.classList.add('open');
                 isLoggedIn = true;
                 
-                // Update header with user's name
                 chatUserDisplay.textContent = `👤 ${currentUser.name}`;
                 
                 firebase.auth().signInAnonymously()
                     .then(() => {
                         listenMessages();
+                        // Check notification status after login
+                        setTimeout(updateNotificationUI, 500);
                         sessionStorage.setItem('DoghriChatLoggedIn', 'true');
                         sessionStorage.setItem('DoghriChatUserId', id);
                         sessionStorage.setItem('DoghriChatUserName', currentUser.name);
@@ -1027,6 +1250,7 @@ function formatText(text) {
             }
             isLoggedIn = false;
             currentUser = null;
+            previousMessageCount = 0;
             firebase.auth().signOut().catch(() => {});
             chatScreen.classList.remove('open');
             loginScreen.classList.remove('hidden');
@@ -1049,7 +1273,6 @@ function formatText(text) {
         // ===== EVENT LISTENERS =====
         loginBtn.addEventListener('click', login);
         
-        // Enter key on either input triggers login
         idInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 passwordInput.focus();
@@ -1069,7 +1292,6 @@ function formatText(text) {
             }
         });
 
-        // Send message events
         sendBtn.addEventListener('click', sendMessage);
         chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -1078,12 +1300,35 @@ function formatText(text) {
             }
         });
 
-        // Auto-login if session exists
+        // Notification button
+        enableNotificationsBtn.addEventListener('click', requestNotificationPermission);
+
+        // Track if chat is visible (for notification logic)
+        document.addEventListener('visibilitychange', () => {
+            isChatVisible = !document.hidden;
+            if (isChatVisible && isLoggedIn) {
+                // Reset notification count when user returns
+                previousMessageCount = allMessages.length;
+            }
+        });
+
+        // Focus tracking - chat is visible when window has focus
+        window.addEventListener('focus', () => {
+            isChatVisible = true;
+            if (isLoggedIn) {
+                previousMessageCount = allMessages.length;
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            isChatVisible = false;
+        });
+
+        // ===== AUTO-LOGIN =====
         const savedUserId = sessionStorage.getItem('DoghriChatUserId');
         const savedUserName = sessionStorage.getItem('DoghriChatUserName');
         
         if (sessionStorage.getItem('DoghriChatLoggedIn') === 'true' && savedUserId) {
-            // Find the user in the list
             const savedUser = USERS.find(u => u.id === parseInt(savedUserId));
             if (savedUser) {
                 currentUser = savedUser;
@@ -1095,19 +1340,24 @@ function formatText(text) {
                 firebase.auth().signInAnonymously()
                     .then(() => {
                         listenMessages();
+                        setTimeout(updateNotificationUI, 500);
                     })
                     .catch(() => {
                         listenMessages();
                     });
             } else {
-                // Invalid session, clear it
                 sessionStorage.removeItem('DoghriChatLoggedIn');
                 sessionStorage.removeItem('DoghriChatUserId');
                 sessionStorage.removeItem('DoghriChatUserName');
             }
         }
 
-        console.log('🚀 Doghri Chat Mobile loaded with ' + USERS.length + ' users');
+        // Initialize notification UI after page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(updateNotificationUI, 1000);
+        });
+
+        console.log('🚀 Doghri Chat Mobile loaded with notifications support');
     </script>
 </body>
 </html>
