@@ -6,8 +6,6 @@
     <title>Doghri Chat · Mobile</title>
     <link rel="icon" href="doghri.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase Messaging SDK -->
-
     <style>
         * {
             margin: 0;
@@ -696,764 +694,670 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
 
+    <script>
+        // ===== USER DATABASE (Hardcoded) =====
+        const USERS = [
+            { id: 6648, name: "Mostafa Mansy" },
+            { id: 7048, name: "Mohamed Badran" },
+            { id: 8452, name: "Mohamed Asab" },
+            { id: 10002, name: "Ahmed Gaber" },
+            { id: 10503, name: "Hossam Azzam" },
+            { id: 10504, name: "Mahmoud Basyouni" },
+            { id: 10505, name: "Ahmed Zyada" },
+            { id: 10507, name: "Ramadan Hassan" },
+            { id: 10508, name: "Mohamed El-Adl" },
+            { id: 10509, name: "Saeed Atef" },
+            { id: 10510, name: "Hani El-Aryan" },
+            { id: 10512, name: "Mohamed Maher" },
+            { id: 10735, name: "Ahmed Ageina" },
+            { id: 10737, name: "Mahmoud Sawaq" },
+            { id: 10739, name: "Abdel Aziz" },
+            { id: 10740, name: "Eliwa" },
+            { id: 10741, name: "Ahmed Gamal" },
+            { id: 10742, name: "Mahmoud Salem" },
+            { id: 10743, name: "Karim Khidr" },
+            { id: 10744, name: "Tarek" },
+            { id: 10796, name: "Ahmed Fathallah" },
+            { id: 10837, name: "Mohamed Reda" },
+            { id: 10910, name: "Mohamed Azzam" }
+        ];
 
-<script>
-
-    // ===== USER DATABASE (Hardcoded) =====
-const USERS = [
-    { id: 6648, name: "Mostafa Mansy" },
-    { id: 7048, name: "Mohamed Badran" },
-    { id: 8452, name: "Mohamed Asab" },
-    { id: 10002, name: "Ahmed Gaber" },
-    { id: 10503, name: "Hossam Azzam" },
-    { id: 10504, name: "Mahmoud Basyouni" },
-    { id: 10505, name: "Ahmed Zyada" },
-    { id: 10507, name: "Ramadan Hassan" },
-    { id: 10508, name: "Mohamed El-Adl" },
-    { id: 10509, name: "Saeed Atef" },
-    { id: 10510, name: "Hani El-Aryan" },
-    { id: 10512, name: "Mohamed Maher" },
-    { id: 10735, name: "Ahmed Ageina" },
-    { id: 10737, name: "Mahmoud Sawaq" },
-    { id: 10739, name: "Abdel Aziz" },
-    { id: 10740, name: "Eliwa" },
-    { id: 10741, name: "Ahmed Gamal" },
-    { id: 10742, name: "Mahmoud Salem" },
-    { id: 10743, name: "Karim Khidr" },
-    { id: 10744, name: "Tarek" },
-    { id: 10796, name: "Ahmed Fathallah" },
-    { id: 10837, name: "Mohamed Reda" },
-    { id: 10910, name: "Mohamed Azzam" }
-];
-
-// ===== AUTHENTICATION FUNCTION =====
-function authenticateUser(id, password) {
-    const user = USERS.find(u => u.id === parseInt(id));
-    
-    if (!user) {
-        return { success: false, message: "ID not found" };
-    }
-    
-    const firstName = user.name.split(' ')[0];
-    const firstLetter = "+" + firstName.charAt(0).toLowerCase();
-    const expectedPassword = String(user.id) + firstLetter;
-    
-    if (password === expectedPassword) {
-        return { success: true, user: user };
-    } else {
-        return { success: false, message: "Invalid password" };
-    }
-}
-
-// ===== FIREBASE CONFIG =====
-const firebaseConfig = {
-    apiKey: "AIzaSyC-NULo0E1WB-9DPRLQlfvlKlmoG9beAhQ",
-    authDomain: "notifications-d1187.firebaseapp.com",
-    databaseURL: "https://notifications-d1187-default-rtdb.firebaseio.com",
-    projectId: "notifications-d1187",
-    storageBucket: "notifications-d1187.firebasestorage.app",
-    messagingSenderId: "237025997774",
-    appId: "1:237025997774:web:834bebf387ffbdf76cb19f"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-const db = firebase.firestore();
-
-// ===== FCM NOTIFICATION SETUP =====
-let fcmToken = null;
-let fcmInitialized = false;
-
-function setupFCM() {
-    // Check if FCM is available
-    if (typeof firebase.messaging === 'undefined') {
-        console.log('FCM not available - SDK not loaded');
-        return;
-    }
-
-    try {
-        const messaging = firebase.messaging();
-        
-        // Request permission
-        messaging.requestPermission()
-            .then(() => {
-                console.log('FCM permission granted');
-                return messaging.getToken({
-                    vapidKey: 'BJf5p8B-7LOEAhNKSLynksA8d23EQB90ZTYiFm3ASH_CmGgiLDRtPIlMNjFspGrqLb1Hj-Tp78Xr91SoInCJ2Z0'
-                });
-            })
-            .then(token => {
-                fcmToken = token;
-                console.log('FCM Token:', token);
-                // Save token to Firestore for later use
-                saveFCMToken(token);
-                fcmInitialized = true;
-                showToast('✅ Push notifications enabled');
-                updateNotificationUI();
-            })
-            .catch(err => {
-                console.log('FCM permission denied:', err);
-                if (err.code === 'messaging/permission-blocked') {
-                    showToast('⚠️ Please enable notifications in browser settings');
-                }
-            });
-
-        // Handle foreground messages
-        messaging.onMessage(function(payload) {
-            console.log('Received foreground message:', payload);
-            // Show in-app notification
-            if (payload.notification) {
-                const title = payload.notification.title || 'New message';
-                const body = payload.notification.body || 'You have a new message';
-                showToast(`📩 ${title}: ${body}`);
-            }
-        });
-
-    } catch (error) {
-        console.error('FCM setup error:', error);
-    }
-}
-
-function saveFCMToken(token) {
-    const user = firebase.auth().currentUser;
-    if (user && currentUser) {
-        db.collection('fcmTokens').doc(user.uid).set({
-            token: token,
-            userId: user.uid,
-            userName: currentUser.name,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        }).catch(err => console.error('Error saving token:', err));
-    }
-}
-
-// ===== NOTIFICATION SYSTEM =====
-let notificationPermission = 'default';
-let lastNotificationId = null;
-let notificationTimeout = null;
-
-// Check if browser supports notifications
-function isNotificationSupported() {
-    return 'Notification' in window;
-}
-
-// Get notification permission status
-function getNotificationStatus() {
-    if (!isNotificationSupported()) return 'unsupported';
-    return Notification.permission;
-}
-
-// Update UI based on notification status
-function updateNotificationUI() {
-    const banner = document.getElementById('notificationBanner');
-    const dot = document.getElementById('notifDot');
-    const status = document.getElementById('notifStatus');
-    const enableBtn = document.getElementById('enableNotificationsBtn');
-
-    if (!banner) return;
-
-    const permission = getNotificationStatus();
-
-    // Check if FCM is initialized
-    if (fcmInitialized && permission === 'granted') {
-        dot.className = 'dot on';
-        status.textContent = '🔔 Push: On';
-        enableBtn.textContent = '✅ Enabled';
-        enableBtn.style.background = '#28a745';
-        enableBtn.disabled = true;
-        banner.classList.add('show');
-    } else if (permission === 'granted') {
-        dot.className = 'dot on';
-        status.textContent = '🔔 Notifications: On';
-        enableBtn.textContent = '✅ Enabled';
-        enableBtn.style.background = '#28a745';
-        enableBtn.disabled = true;
-        banner.classList.add('show');
-    } else if (permission === 'denied') {
-        dot.className = 'dot off';
-        status.textContent = '🔕 Notifications: Blocked';
-        enableBtn.textContent = '⚠️ Enable in Settings';
-        enableBtn.style.background = '#dc3545';
-        banner.classList.add('show');
-    } else if (permission === 'default') {
-        dot.className = 'dot off';
-        status.textContent = '🔔 Notifications: Off';
-        enableBtn.textContent = '🔔 Enable';
-        enableBtn.style.background = '#0e94e1';
-        enableBtn.disabled = false;
-        banner.classList.add('show');
-    } else {
-        banner.classList.remove('show');
-    }
-}
-
-// Request notification permission
-function requestNotificationPermission() {
-    if (!isNotificationSupported()) {
-        showToast('Notifications not supported on this browser');
-        return;
-    }
-
-    if (Notification.permission === 'granted') {
-        showToast('✅ Notifications already enabled');
-        // Try to setup FCM if not already done
-        if (!fcmInitialized) {
-            setupFCM();
-        }
-        updateNotificationUI();
-        return;
-    }
-
-    if (Notification.permission === 'denied') {
-        showToast('⚠️ Notifications blocked. Please enable in browser settings.');
-        return;
-    }
-
-    Notification.requestPermission().then(permission => {
-        notificationPermission = permission;
-        if (permission === 'granted') {
-            showToast('✅ Notifications enabled!');
-            // Setup FCM after permission is granted
-            setupFCM();
-            // Test notification
-            sendNotification('Doghri Chat', '🔔 Notifications are now active!');
-        } else {
-            showToast('❌ Notification permission denied');
-        }
-        updateNotificationUI();
-    }).catch(() => {
-        showToast('❌ Error requesting notification permission');
-    });
-}
-
-// Send a notification
-function sendNotification(title, body, tag) {
-    if (!isNotificationSupported()) return;
-    if (Notification.permission !== 'granted') return;
-
-    // Prevent duplicate notifications in quick succession
-    if (tag && lastNotificationId === tag) {
-        return;
-    }
-
-    try {
-        const options = {
-            body: body,
-            icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%230e94e1"/%3E%3Ctext x="50" y="58" text-anchor="middle" font-size="40" fill="white" font-family="Arial"%3E💬%3C/text%3E%3C/svg%3E',
-            badge: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%230e94e1"/%3E%3Ctext x="50" y="58" text-anchor="middle" font-size="40" fill="white" font-family="Arial"%3E💬%3C/text%3E%3C/svg%3E',
-            tag: tag || 'chat-notification',
-            vibrate: [200, 100, 200],
-            requireInteraction: true,
-            silent: false,
-            timestamp: Date.now()
-        };
-
-        const notification = new Notification(title, options);
-        
-        notification.onclick = function() {
-            window.focus();
-            this.close();
-            // Scroll to bottom if chat is open
-            const messagesContainer = document.getElementById('chatMessages');
-            if (messagesContainer) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
-        };
-
-        notification.onshow = function() {
-            setTimeout(() => this.close(), 8000);
-        };
-
-        if (tag) {
-            lastNotificationId = tag;
-        }
-
-        // Play notification sound if available
-        try {
-            const audio = new Audio('data:audio/wav;base64,UklGRlQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAACBMjE5MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
-            audio.play().catch(() => {});
-        } catch (e) {}
-
-    } catch (error) {
-        console.error('Notification error:', error);
-    }
-}
-
-// ===== DOM REFS =====
-const loginScreen = document.getElementById('loginScreen');
-const chatScreen = document.getElementById('chatScreen');
-const idInput = document.getElementById('idInput');
-const passwordInput = document.getElementById('passwordInput');
-const loginBtn = document.getElementById('loginBtn');
-const loginError = document.getElementById('loginError');
-const logoutBtn = document.getElementById('logoutBtn');
-const refreshBtn = document.getElementById('refreshBtn');
-const messagesContainer = document.getElementById('chatMessages');
-const copyToast = document.getElementById('copyToast');
-const messageCount = document.getElementById('messageCount');
-const chatInput = document.getElementById('chatInput');
-const sendBtn = document.getElementById('sendBtn');
-const chatUserDisplay = document.getElementById('chatUserDisplay');
-const enableNotificationsBtn = document.getElementById('enableNotificationsBtn');
-
-let allMessages = [];
-let toastTimer = null;
-let unsubscribe = null;
-let isLoggedIn = false;
-let currentUser = null;
-let previousMessageCount = 0;
-let isChatVisible = true;
-
-// ===== TOAST =====
-function showToast(text) {
-    copyToast.textContent = text;
-    copyToast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-        copyToast.classList.remove('show');
-    }, 1800);
-}
-
-// ===== FORMAT TEXT =====
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function formatText(text) {
-    let html = escapeHtml(text);
-    
-    html = html.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
-    html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
-    html = html.replace(/_{2}([^_{]+)_{2}/g, '<u>$1</u>');
-    
-    const parts = html.split(/(\s+)/);
-    
-    for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        
-        if (part.includes('href=')) continue;
-        
-        let url = null;
-        let isUrl = false;
-        let displayUrl = part;
-        
-        if (part.match(/^https?:\/\/[^\s<>"']+$/)) {
-            url = part;
-            isUrl = true;
-        }
-        else if (part.match(/^www\.[^\s<>"']+$/)) {
-            url = 'https://' + part;
-            isUrl = true;
-        }
-        
-        if (isUrl && url) {
-            if (displayUrl.length > 40) {
-                displayUrl = displayUrl.substring(0, 37) + '...';
-            }
-            parts[i] = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #0e94e1; text-decoration: underline; word-break: break-all; padding: 2px 0; display: inline-block;">${displayUrl}</a>`;
-        }
-    }
-    
-    html = parts.join('');
-    html = html.replace(/\n/g, '<br>');
-    html = html.replace(/ {2,}/g, function(match) {
-        return '&nbsp;'.repeat(match.length);
-    });
-    
-    return html;
-}
-
-// ===== WHATSAPP SHARE =====
-function shareToWhatsApp(text) {
-    const encodedText = encodeURIComponent(text);
-    const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
-    const whatsappWebUrl = `https://wa.me/?text=${encodedText}`;
-    
-    const win = window.open(whatsappAppUrl, '_blank');
-    if (!win || win.closed || typeof win.closed === 'undefined') {
-        setTimeout(() => {
-            window.open(whatsappWebUrl, '_blank');
-        }, 300);
-    }
-}
-
-// ===== SEND MESSAGE =====
-function sendMessage() {
-    const text = chatInput.value;
-    if (!text.trim()) {
-        showToast('Please enter a message');
-        return;
-    }
-
-    if (!currentUser) {
-        showToast('Please login first');
-        return;
-    }
-
-    const user = firebase.auth().currentUser;
-    if (!user) {
-        showToast('Please wait... authenticating');
-        firebase.auth().signInAnonymously()
-            .then(() => {
-                sendMessage();
-            })
-            .catch(error => {
-                console.error('Auth error:', error);
-                showToast('Authentication failed');
-            });
-        return;
-    }
-
-    const senderName = currentUser.name;
-
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-
-    db.collection('chatMessages').add({
-        text: text,
-        userId: user.uid,
-        senderName: senderName,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(() => {
-        chatInput.value = '';
-        chatInput.style.height = 'auto';
-        showToast('Message sent!');
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
-    }).catch((error) => {
-        console.error('Error sending message:', error);
-        showToast('Error sending message');
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
-    });
-}
-
-// ===== RENDER MESSAGES =====
-function renderMessages(messages) {
-    if (!messages || messages.length === 0) {
-        messagesContainer.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-inbox"></i>
-                <p>No messages yet</p>
-            </div>
-        `;
-        messageCount.textContent = '0';
-        previousMessageCount = 0;
-        return;
-    }
-
-    const sorted = [...messages].sort((a, b) => 
-        (a.timestamp?.toMillis?.() || 0) - (b.timestamp?.toMillis?.() || 0)
-    );
-
-    let html = '';
-    sorted.forEach(msg => {
-        const isSelf = msg.userId === firebase.auth().currentUser?.uid;
-        const timeStr = msg.timestamp?.toDate?.()?.toLocaleTimeString([], { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-        }) || '';
-        const formattedText = formatText(msg.text);
-        const rawText = msg.text || '';
-
-        html += `
-            <div class="message-bubble ${isSelf ? 'self' : ''}" data-id="${msg.id}">
-                <div class="msg-header">
-                    <span class="msg-user">${msg.senderName || 'User'}</span>
-                    <span class="msg-time">${timeStr}</span>
-                </div>
-                <div class="msg-text">${formattedText}</div>
-                <div class="msg-actions">
-                    <button class="copy-btn" data-text="${escapeHtml(rawText)}" title="Copy message">
-                        <i class="fas fa-copy"></i> <p>Copy</p>
-                    </button>
-                    <button class="whatsapp-btn" data-text="${escapeHtml(rawText)}" title="Send to WhatsApp">
-                        <i class="fab fa-whatsapp"></i> <p>WhatsApp</p>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-
-    messagesContainer.innerHTML = html;
-    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    messageCount.textContent = sorted.length;
-
-    // Check for new messages and send notification
-    if (sorted.length > previousMessageCount) {
-        const newMessages = sorted.slice(previousMessageCount);
-        const selfUid = firebase.auth().currentUser?.uid;
-        
-        // Only send notification for messages from others
-        const externalMessages = newMessages.filter(msg => msg.userId !== selfUid);
-        
-        if (externalMessages.length > 0) {
-            const lastMsg = externalMessages[externalMessages.length - 1];
-            const senderName = lastMsg.senderName || 'Someone';
-            const messageText = lastMsg.text || '';
-            const preview = messageText.length > 50 ? messageText.substring(0, 50) + '...' : messageText;
+        // ===== AUTHENTICATION FUNCTION =====
+        function authenticateUser(id, password) {
+            const user = USERS.find(u => u.id === parseInt(id));
             
-            // Only send notification if chat is hidden or user is not focused
-            if (!isChatVisible || document.hidden) {
-                sendNotification(
-                    `📩 ${senderName}`,
-                    `${preview}`,
-                    `msg-${lastMsg.id}`
-                );
+            if (!user) {
+                return { success: false, message: "ID not found" };
+            }
+            
+            const firstName = user.name.split(' ')[0];
+            const firstLetter = "+" + firstName.charAt(0).toLowerCase();
+            const expectedPassword = String(user.id) + firstLetter;
+            
+            if (password === expectedPassword) {
+                return { success: true, user: user };
             } else {
-                // If chat is visible, just show a toast
-                showToast(`📩 New message from ${senderName}`);
+                return { success: false, message: "Invalid password" };
             }
         }
-        previousMessageCount = sorted.length;
-    } else {
-        previousMessageCount = sorted.length;
-    }
 
-    // Copy buttons
-    document.querySelectorAll('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const text = btn.dataset.text;
-            if (text) {
-                navigator.clipboard?.writeText(text).then(() => {
-                    showToast('Copied!');
-                }).catch(() => {
-                    const ta = document.createElement('textarea');
-                    ta.value = text;
-                    document.body.appendChild(ta);
-                    ta.select();
-                    document.execCommand('copy');
-                    ta.remove();
-                    showToast('Copied!');
-                });
+        // ===== FIREBASE CONFIG =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-NULo0E1WB-9DPRLQlfvlKlmoG9beAhQ",
+            authDomain: "notifications-d1187.firebaseapp.com",
+            databaseURL: "https://notifications-d1187-default-rtdb.firebaseio.com",
+            projectId: "notifications-d1187",
+            storageBucket: "notifications-d1187.firebasestorage.app",
+            messagingSenderId: "237025997774",
+            appId: "1:237025997774:web:834bebf387ffbdf76cb19f"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+
+        // ===== NOTIFICATION SYSTEM =====
+        let notificationPermission = 'default';
+        let lastNotificationId = null;
+        let notificationTimeout = null;
+
+        // Check if browser supports notifications
+        function isNotificationSupported() {
+            return 'Notification' in window;
+        }
+
+        // Get notification permission status
+        function getNotificationStatus() {
+            if (!isNotificationSupported()) return 'unsupported';
+            return Notification.permission;
+        }
+
+        // Update UI based on notification status
+        function updateNotificationUI() {
+            const banner = document.getElementById('notificationBanner');
+            const dot = document.getElementById('notifDot');
+            const status = document.getElementById('notifStatus');
+            const enableBtn = document.getElementById('enableNotificationsBtn');
+
+            const permission = getNotificationStatus();
+
+            if (permission === 'granted') {
+                dot.className = 'dot on';
+                status.textContent = '🔔 Notifications: On';
+                enableBtn.textContent = '✅ Enabled';
+                enableBtn.style.background = '#28a745';
+                enableBtn.disabled = true;
+                banner.classList.add('show');
+            } else if (permission === 'denied') {
+                dot.className = 'dot off';
+                status.textContent = '🔕 Notifications: Blocked';
+                enableBtn.textContent = '⚠️ Enable in Settings';
+                enableBtn.style.background = '#dc3545';
+                banner.classList.add('show');
+            } else if (permission === 'default') {
+                dot.className = 'dot off';
+                status.textContent = '🔔 Notifications: Off';
+                enableBtn.textContent = '🔔 Enable';
+                enableBtn.style.background = '#0e94e1';
+                enableBtn.disabled = false;
+                banner.classList.add('show');
+            } else {
+                banner.classList.remove('show');
             }
-        });
-    });
+        }
 
-    // WhatsApp buttons
-    document.querySelectorAll('.whatsapp-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const text = btn.dataset.text;
-            if (text) {
-                shareToWhatsApp(text);
+        // Request notification permission
+        function requestNotificationPermission() {
+            if (!isNotificationSupported()) {
+                showToast('Notifications not supported on this browser');
+                return;
             }
-        });
-    });
-}
 
-// ===== LISTEN TO MESSAGES =====
-function listenMessages() {
-    if (unsubscribe) {
-        unsubscribe();
-    }
+            if (Notification.permission === 'granted') {
+                showToast('✅ Notifications already enabled');
+                updateNotificationUI();
+                return;
+            }
 
-    // Reset previous count when starting fresh
-    previousMessageCount = 0;
+            if (Notification.permission === 'denied') {
+                showToast('⚠️ Notifications blocked. Please enable in browser settings.');
+                return;
+            }
 
-    unsubscribe = db.collection('chatMessages')
-        .orderBy('timestamp', 'asc')
-        .onSnapshot(snapshot => {
-            const msgs = [];
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                msgs.push({ id: doc.id, ...data });
+            Notification.requestPermission().then(permission => {
+                notificationPermission = permission;
+                updateNotificationUI();
+                if (permission === 'granted') {
+                    showToast('✅ Notifications enabled!');
+                    // Test notification
+                    sendNotification('Doghri Chat', '🔔 Notifications are now active!');
+                } else {
+                    showToast('❌ Notification permission denied');
+                }
+            }).catch(() => {
+                showToast('❌ Error requesting notification permission');
             });
-            allMessages = msgs;
-            renderMessages(msgs);
-        }, error => {
-            console.error('Chat error:', error);
+        }
+
+        // Send a notification
+        function sendNotification(title, body, tag) {
+            if (!isNotificationSupported()) return;
+            if (Notification.permission !== 'granted') return;
+
+            // Prevent duplicate notifications in quick succession
+            if (tag && lastNotificationId === tag) {
+                return;
+            }
+
+            try {
+                const options = {
+                    body: body,
+                    icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%230e94e1"/%3E%3Ctext x="50" y="58" text-anchor="middle" font-size="40" fill="white" font-family="Arial"%3E💬%3C/text%3E%3C/svg%3E',
+                    badge: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"%3E%3Ccircle cx="50" cy="50" r="50" fill="%230e94e1"/%3E%3Ctext x="50" y="58" text-anchor="middle" font-size="40" fill="white" font-family="Arial"%3E💬%3C/text%3E%3C/svg%3E',
+                    tag: tag || 'chat-notification',
+                    vibrate: [200, 100, 200],
+                    requireInteraction: true,
+                    silent: false,
+                    timestamp: Date.now()
+                };
+
+                const notification = new Notification(title, options);
+                
+                notification.onclick = function() {
+                    window.focus();
+                    this.close();
+                    // Scroll to bottom if chat is open
+                    const messagesContainer = document.getElementById('chatMessages');
+                    if (messagesContainer) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                };
+
+                notification.onshow = function() {
+                    setTimeout(() => this.close(), 8000);
+                };
+
+                if (tag) {
+                    lastNotificationId = tag;
+                }
+
+                // Play notification sound if available
+                try {
+                    const audio = new Audio('data:audio/wav;base64,UklGRlQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAACBMjE5MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+                    audio.play().catch(() => {});
+                } catch (e) {}
+
+            } catch (error) {
+                console.error('Notification error:', error);
+            }
+        }
+
+        // ===== DOM REFS =====
+        const loginScreen = document.getElementById('loginScreen');
+        const chatScreen = document.getElementById('chatScreen');
+        const idInput = document.getElementById('idInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const messagesContainer = document.getElementById('chatMessages');
+        const copyToast = document.getElementById('copyToast');
+        const messageCount = document.getElementById('messageCount');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatUserDisplay = document.getElementById('chatUserDisplay');
+        const enableNotificationsBtn = document.getElementById('enableNotificationsBtn');
+
+        let allMessages = [];
+        let toastTimer = null;
+        let unsubscribe = null;
+        let isLoggedIn = false;
+        let currentUser = null;
+        let previousMessageCount = 0;
+        let isChatVisible = true;
+
+        // ===== TOAST =====
+        function showToast(text) {
+            copyToast.textContent = text;
+            copyToast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                copyToast.classList.remove('show');
+            }, 1800);
+        }
+
+        // ===== FORMAT TEXT =====
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatText(text) {
+            let html = escapeHtml(text);
+            
+            html = html.replace(/\*([^*]+)\*/g, '<strong>$1</strong>');
+            html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+            html = html.replace(/_{2}([^_{]+)_{2}/g, '<u>$1</u>');
+            
+            const parts = html.split(/(\s+)/);
+            
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                
+                if (part.includes('href=')) continue;
+                
+                let url = null;
+                let isUrl = false;
+                let displayUrl = part;
+                
+                if (part.match(/^https?:\/\/[^\s<>"']+$/)) {
+                    url = part;
+                    isUrl = true;
+                }
+                else if (part.match(/^www\.[^\s<>"']+$/)) {
+                    url = 'https://' + part;
+                    isUrl = true;
+                }
+                
+                if (isUrl && url) {
+                    if (displayUrl.length > 40) {
+                        displayUrl = displayUrl.substring(0, 37) + '...';
+                    }
+                    parts[i] = `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #0e94e1; text-decoration: underline; word-break: break-all; padding: 2px 0; display: inline-block;">${displayUrl}</a>`;
+                }
+            }
+            
+            html = parts.join('');
+            html = html.replace(/\n/g, '<br>');
+            html = html.replace(/ {2,}/g, function(match) {
+                return '&nbsp;'.repeat(match.length);
+            });
+            
+            return html;
+        }
+
+        // ===== WHATSAPP SHARE =====
+        function shareToWhatsApp(text) {
+            const encodedText = encodeURIComponent(text);
+            const whatsappAppUrl = `whatsapp://send?text=${encodedText}`;
+            const whatsappWebUrl = `https://wa.me/?text=${encodedText}`;
+            
+            const win = window.open(whatsappAppUrl, '_blank');
+            if (!win || win.closed || typeof win.closed === 'undefined') {
+                setTimeout(() => {
+                    window.open(whatsappWebUrl, '_blank');
+                }, 300);
+            }
+        }
+
+        // ===== SEND MESSAGE =====
+        function sendMessage() {
+            const text = chatInput.value;
+            if (!text.trim()) {
+                showToast('Please enter a message');
+                return;
+            }
+
+            if (!currentUser) {
+                showToast('Please login first');
+                return;
+            }
+
+            const user = firebase.auth().currentUser;
+            if (!user) {
+                showToast('Please wait... authenticating');
+                firebase.auth().signInAnonymously()
+                    .then(() => {
+                        sendMessage();
+                    })
+                    .catch(error => {
+                        console.error('Auth error:', error);
+                        showToast('Authentication failed');
+                    });
+                return;
+            }
+
+            const senderName = currentUser.name;
+
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+            db.collection('chatMessages').add({
+                text: text,
+                userId: user.uid,
+                senderName: senderName,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                chatInput.value = '';
+                chatInput.style.height = 'auto';
+                showToast('Message sent!');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+            }).catch((error) => {
+                console.error('Error sending message:', error);
+                showToast('Error sending message');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send';
+            });
+        }
+
+        // ===== RENDER MESSAGES =====
+        function renderMessages(messages) {
+            if (!messages || messages.length === 0) {
+                messagesContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No messages yet</p>
+                    </div>
+                `;
+                messageCount.textContent = '0';
+                previousMessageCount = 0;
+                return;
+            }
+
+            const sorted = [...messages].sort((a, b) => 
+                (a.timestamp?.toMillis?.() || 0) - (b.timestamp?.toMillis?.() || 0)
+            );
+
+            let html = '';
+            sorted.forEach(msg => {
+                const isSelf = msg.userId === firebase.auth().currentUser?.uid;
+                const timeStr = msg.timestamp?.toDate?.()?.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                }) || '';
+                const formattedText = formatText(msg.text);
+                const rawText = msg.text || '';
+
+                html += `
+                    <div class="message-bubble ${isSelf ? 'self' : ''}" data-id="${msg.id}">
+                        <div class="msg-header">
+                            <span class="msg-user">${msg.senderName || 'User'}</span>
+                            <span class="msg-time">${timeStr}</span>
+                        </div>
+                        <div class="msg-text">${formattedText}</div>
+                        <div class="msg-actions">
+                            <button class="copy-btn" data-text="${escapeHtml(rawText)}" title="Copy message">
+                                <i class="fas fa-copy"></i> <p>Copy</p>
+                            </button>
+                            <button class="whatsapp-btn" data-text="${escapeHtml(rawText)}" title="Send to WhatsApp">
+                                <i class="fab fa-whatsapp"></i> <p>WhatsApp</p>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            messagesContainer.innerHTML = html;
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            messageCount.textContent = sorted.length;
+
+            // Check for new messages and send notification
+            if (sorted.length > previousMessageCount) {
+                const newMessages = sorted.slice(previousMessageCount);
+                const selfUid = firebase.auth().currentUser?.uid;
+                
+                // Only send notification for messages from others
+                const externalMessages = newMessages.filter(msg => msg.userId !== selfUid);
+                
+                if (externalMessages.length > 0) {
+                    const lastMsg = externalMessages[externalMessages.length - 1];
+                    const senderName = lastMsg.senderName || 'Someone';
+                    const messageText = lastMsg.text || '';
+                    const preview = messageText.length > 50 ? messageText.substring(0, 50) + '...' : messageText;
+                    
+                    // Only send notification if chat is hidden or user is not focused
+                    if (!isChatVisible || document.hidden) {
+                        sendNotification(
+                            `📩 ${senderName}`,
+                            `${preview}`,
+                            `msg-${lastMsg.id}`
+                        );
+                    } else {
+                        // If chat is visible, just show a toast
+                        showToast(`📩 New message from ${senderName}`);
+                    }
+                }
+                previousMessageCount = sorted.length;
+            } else {
+                previousMessageCount = sorted.length;
+            }
+
+            // Copy buttons
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const text = btn.dataset.text;
+                    if (text) {
+                        navigator.clipboard?.writeText(text).then(() => {
+                            showToast('Copied!');
+                        }).catch(() => {
+                            const ta = document.createElement('textarea');
+                            ta.value = text;
+                            document.body.appendChild(ta);
+                            ta.select();
+                            document.execCommand('copy');
+                            ta.remove();
+                            showToast('Copied!');
+                        });
+                    }
+                });
+            });
+
+            // WhatsApp buttons
+            document.querySelectorAll('.whatsapp-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const text = btn.dataset.text;
+                    if (text) {
+                        shareToWhatsApp(text);
+                    }
+                });
+            });
+        }
+
+        // ===== LISTEN TO MESSAGES =====
+        function listenMessages() {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+
+            // Reset previous count when starting fresh
+            previousMessageCount = 0;
+
+            unsubscribe = db.collection('chatMessages')
+                .orderBy('timestamp', 'asc')
+                .onSnapshot(snapshot => {
+                    const msgs = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        msgs.push({ id: doc.id, ...data });
+                    });
+                    allMessages = msgs;
+                    renderMessages(msgs);
+                }, error => {
+                    console.error('Chat error:', error);
+                    messagesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-exclamation-triangle" style="color:#d74f4f;"></i>
+                            <p>Error loading messages</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // ===== AUTO-RESIZE TEXTAREA =====
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // ===== LOGIN =====
+        function login() {
+            const id = idInput.value.trim();
+            const password = passwordInput.value.trim();
+            
+            if (!id || !password) {
+                loginError.textContent = 'Please enter both ID and password';
+                loginError.classList.add('show');
+                setTimeout(() => loginError.classList.remove('show'), 3000);
+                return;
+            }
+
+            const result = authenticateUser(id, password);
+            
+            if (result.success) {
+                currentUser = result.user;
+                loginError.classList.remove('show');
+                loginScreen.classList.add('hidden');
+                chatScreen.classList.add('open');
+                isLoggedIn = true;
+                
+                chatUserDisplay.textContent = `👤 ${currentUser.name}`;
+                
+                firebase.auth().signInAnonymously()
+                    .then(() => {
+                        listenMessages();
+                        // Check notification status after login
+                        setTimeout(updateNotificationUI, 500);
+                        sessionStorage.setItem('DoghriChatLoggedIn', 'true');
+                        sessionStorage.setItem('DoghriChatUserId', id);
+                        sessionStorage.setItem('DoghriChatUserName', currentUser.name);
+                    })
+                    .catch(error => {
+                        console.error('Auth error:', error);
+                        listenMessages();
+                    });
+            } else {
+                loginError.textContent = 'Invalid ID or password. Please try again.';
+                loginError.classList.add('show');
+                passwordInput.value = '';
+                passwordInput.focus();
+                setTimeout(() => {
+                    loginError.classList.remove('show');
+                }, 3000);
+            }
+        }
+
+        // ===== LOGOUT =====
+        function logout() {
+            if (unsubscribe) {
+                unsubscribe();
+                unsubscribe = null;
+            }
+            isLoggedIn = false;
+            currentUser = null;
+            previousMessageCount = 0;
+            firebase.auth().signOut().catch(() => {});
+            chatScreen.classList.remove('open');
+            loginScreen.classList.remove('hidden');
+            idInput.value = '';
+            passwordInput.value = '';
+            chatUserDisplay.textContent = 'Doghri Chat Mobile';
             messagesContainer.innerHTML = `
                 <div class="empty-state">
-                    <i class="fas fa-exclamation-triangle" style="color:#d74f4f;"></i>
-                    <p>Error loading messages</p>
+                    <i class="fas fa-inbox"></i>
+                    <p>Loading messages...</p>
                 </div>
             `;
+            allMessages = [];
+            messageCount.textContent = '0';
+            sessionStorage.removeItem('DoghriChatLoggedIn');
+            sessionStorage.removeItem('DoghriChatUserId');
+            sessionStorage.removeItem('DoghriChatUserName');
+        }
+
+        // ===== EVENT LISTENERS =====
+        loginBtn.addEventListener('click', login);
+        
+        idInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                passwordInput.focus();
+            }
         });
-}
-
-// ===== AUTO-RESIZE TEXTAREA =====
-chatInput.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-});
-
-// ===== LOGIN =====
-function login() {
-    const id = idInput.value.trim();
-    const password = passwordInput.value.trim();
-    
-    if (!id || !password) {
-        loginError.textContent = 'Please enter both ID and password';
-        loginError.classList.add('show');
-        setTimeout(() => loginError.classList.remove('show'), 3000);
-        return;
-    }
-
-    const result = authenticateUser(id, password);
-    
-    if (result.success) {
-        currentUser = result.user;
-        loginError.classList.remove('show');
-        loginScreen.classList.add('hidden');
-        chatScreen.classList.add('open');
-        isLoggedIn = true;
         
-        chatUserDisplay.textContent = `👤 ${currentUser.name}`;
+        passwordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        logoutBtn.addEventListener('click', logout);
+        refreshBtn.addEventListener('click', () => {
+            if (unsubscribe) {
+                unsubscribe();
+                listenMessages();
+                showToast('Refreshed');
+            }
+        });
+
+        sendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Notification button
+        enableNotificationsBtn.addEventListener('click', requestNotificationPermission);
+
+        // Track if chat is visible (for notification logic)
+        document.addEventListener('visibilitychange', () => {
+            isChatVisible = !document.hidden;
+            if (isChatVisible && isLoggedIn) {
+                // Reset notification count when user returns
+                previousMessageCount = allMessages.length;
+            }
+        });
+
+        // Focus tracking - chat is visible when window has focus
+        window.addEventListener('focus', () => {
+            isChatVisible = true;
+            if (isLoggedIn) {
+                previousMessageCount = allMessages.length;
+            }
+        });
+
+        window.addEventListener('blur', () => {
+            isChatVisible = false;
+        });
+
+        // ===== AUTO-LOGIN =====
+        const savedUserId = sessionStorage.getItem('DoghriChatUserId');
+        const savedUserName = sessionStorage.getItem('DoghriChatUserName');
         
-        firebase.auth().signInAnonymously()
-            .then(() => {
-                listenMessages();
-                // Setup FCM after login
-                setTimeout(() => {
-                    setupFCM();
-                    updateNotificationUI();
-                }, 1000);
-                sessionStorage.setItem('DoghriChatLoggedIn', 'true');
-                sessionStorage.setItem('DoghriChatUserId', id);
-                sessionStorage.setItem('DoghriChatUserName', currentUser.name);
-            })
-            .catch(error => {
-                console.error('Auth error:', error);
-                listenMessages();
-            });
-    } else {
-        loginError.textContent = 'Invalid ID or password. Please try again.';
-        loginError.classList.add('show');
-        passwordInput.value = '';
-        passwordInput.focus();
-        setTimeout(() => {
-            loginError.classList.remove('show');
-        }, 3000);
-    }
-}
+        if (sessionStorage.getItem('DoghriChatLoggedIn') === 'true' && savedUserId) {
+            const savedUser = USERS.find(u => u.id === parseInt(savedUserId));
+            if (savedUser) {
+                currentUser = savedUser;
+                loginScreen.classList.add('hidden');
+                chatScreen.classList.add('open');
+                isLoggedIn = true;
+                chatUserDisplay.textContent = `👤 ${currentUser.name}`;
+                
+                firebase.auth().signInAnonymously()
+                    .then(() => {
+                        listenMessages();
+                        setTimeout(updateNotificationUI, 500);
+                    })
+                    .catch(() => {
+                        listenMessages();
+                    });
+            } else {
+                sessionStorage.removeItem('DoghriChatLoggedIn');
+                sessionStorage.removeItem('DoghriChatUserId');
+                sessionStorage.removeItem('DoghriChatUserName');
+            }
+        }
 
-// ===== LOGOUT =====
-function logout() {
-    if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
-    }
-    isLoggedIn = false;
-    currentUser = null;
-    previousMessageCount = 0;
-    fcmToken = null;
-    fcmInitialized = false;
-    firebase.auth().signOut().catch(() => {});
-    chatScreen.classList.remove('open');
-    loginScreen.classList.remove('hidden');
-    idInput.value = '';
-    passwordInput.value = '';
-    chatUserDisplay.textContent = 'Doghri Chat Mobile';
-    messagesContainer.innerHTML = `
-        <div class="empty-state">
-            <i class="fas fa-inbox"></i>
-            <p>Loading messages...</p>
-        </div>
-    `;
-    allMessages = [];
-    messageCount.textContent = '0';
-    sessionStorage.removeItem('DoghriChatLoggedIn');
-    sessionStorage.removeItem('DoghriChatUserId');
-    sessionStorage.removeItem('DoghriChatUserName');
-    updateNotificationUI();
-}
+        // Initialize notification UI after page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(updateNotificationUI, 1000);
+        });
 
-// ===== EVENT LISTENERS =====
-loginBtn.addEventListener('click', login);
-
-idInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        passwordInput.focus();
-    }
-});
-
-passwordInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') login();
-});
-
-logoutBtn.addEventListener('click', logout);
-refreshBtn.addEventListener('click', () => {
-    if (unsubscribe) {
-        unsubscribe();
-        listenMessages();
-        showToast('Refreshed');
-    }
-});
-
-sendBtn.addEventListener('click', sendMessage);
-chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-    }
-});
-
-// Notification button
-enableNotificationsBtn.addEventListener('click', requestNotificationPermission);
-
-// Track if chat is visible (for notification logic)
-document.addEventListener('visibilitychange', () => {
-    isChatVisible = !document.hidden;
-    if (isChatVisible && isLoggedIn) {
-        // Reset notification count when user returns
-        previousMessageCount = allMessages.length;
-    }
-});
-
-// Focus tracking - chat is visible when window has focus
-window.addEventListener('focus', () => {
-    isChatVisible = true;
-    if (isLoggedIn) {
-        previousMessageCount = allMessages.length;
-    }
-});
-
-window.addEventListener('blur', () => {
-    isChatVisible = false;
-});
-
-// ===== AUTO-LOGIN =====
-const savedUserId = sessionStorage.getItem('DoghriChatUserId');
-const savedUserName = sessionStorage.getItem('DoghriChatUserName');
-
-if (sessionStorage.getItem('DoghriChatLoggedIn') === 'true' && savedUserId) {
-    const savedUser = USERS.find(u => u.id === parseInt(savedUserId));
-    if (savedUser) {
-        currentUser = savedUser;
-        loginScreen.classList.add('hidden');
-        chatScreen.classList.add('open');
-        isLoggedIn = true;
-        chatUserDisplay.textContent = `👤 ${currentUser.name}`;
-        
-        firebase.auth().signInAnonymously()
-            .then(() => {
-                listenMessages();
-                setTimeout(() => {
-                    setupFCM();
-                    updateNotificationUI();
-                }, 1000);
-            })
-            .catch(() => {
-                listenMessages();
-            });
-    } else {
-        sessionStorage.removeItem('DoghriChatLoggedIn');
-        sessionStorage.removeItem('DoghriChatUserId');
-        sessionStorage.removeItem('DoghriChatUserName');
-    }
-}
-
-// Initialize notification UI after page loads
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(updateNotificationUI, 1000);
-});
-
-console.log('🚀 Doghri Chat Mobile loaded with FCM notifications support');
-console.log('📱 Sender ID:', '237025997774');
-</script>
+        console.log('🚀 Doghri Chat Mobile loaded with notifications support');
+    </script>
 </body>
 </html>
